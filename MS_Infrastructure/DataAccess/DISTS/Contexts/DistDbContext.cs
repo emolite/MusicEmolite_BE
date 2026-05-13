@@ -11,7 +11,11 @@ namespace MS_Infrastructure.DataAccess.DISTS.Contexts
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.HasDefaultSchema("dist");
+
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(DistDbContext).Assembly);
+
+            base.OnModelCreating(modelBuilder);
         }
     }
 }

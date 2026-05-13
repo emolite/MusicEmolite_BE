@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MS_Domain.Entities.CRMS
 {
-    [Table("CRM_USERS")]
+    [Table("users", Schema = "crm")]
     public class CrmUser : BaseModel
     {
         [Column("ref_code")]

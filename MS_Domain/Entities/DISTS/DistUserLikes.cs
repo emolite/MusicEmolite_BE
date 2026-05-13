@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MS_Domain.Entities.DISTS
 {
-    [Table("DIST_USER_LIKES")]
+    [Table("user_likes", Schema = "dist")]
     public class DistUserLikes : BaseModel
     {
         [Column("user_id")]

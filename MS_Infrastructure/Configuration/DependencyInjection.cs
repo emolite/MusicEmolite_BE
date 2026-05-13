@@ -31,10 +31,10 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         services.AddDbContext<CrmDbContext>(options =>
-            options.UseSqlServer(
+            options.UseNpgsql(
                 configuration.GetConnectionString("CRMConnection")));
         services.AddDbContext<DistDbContext>(options =>
-            options.UseSqlServer(
+            options.UseNpgsql(
                 configuration.GetConnectionString("DISTConnection")));
     }
 

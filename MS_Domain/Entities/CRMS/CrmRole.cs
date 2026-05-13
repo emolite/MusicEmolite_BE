@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace MS_Domain.Entities.CRMS
 {
-    [Table("CRM_ROLES")]
+    [Table("roles", Schema = "crm")]
     public class CrmRole : BaseModel
     {
         [Column("role_code")]

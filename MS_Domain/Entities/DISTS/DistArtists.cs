@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace MS_Domain.Entities.DISTS
 {
-    [Table("DIST_ARTISTS")]
+    [Table("artists", Schema = "dist")]
     public class DistArtists : BaseModel
     {
         [Column("name")]

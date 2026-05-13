@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MS_Domain.Entities.CRMS
 {
-    [Table("CRM_USER_PROFILES")]
+    [Table("user_profiles", Schema = "crm")]
     public class CrmUserProfile : BaseModel
     {
         [Column("ref_code")]

@@ -1,0 +1,260 @@
+﻿using MS_Application.Constants;
+using MS_Application.DataTransferObjects.Base;
+using MS_Application.DataTransferObjects.Songs;
+using MS_Application.Helpers;
+using MS_Application.Repositories.Interfaces;
+using MS_Application.Services.Interfaces;
+using MS_Application.Services.Interfaces.External;
+using MS_Domain.Entities.DISTS;
+using TagLib;
+
+namespace MS_Application.Services
+{
+    public class SongsService : ISongsService
+    {
+        private readonly IDistUnitOfWork _distUnitOfWork;
+        private readonly ICloudinaryService _cloudinaryService;
+
+        public SongsService(
+            IDistUnitOfWork distUnitOfWork,
+            ICloudinaryService cloudinaryService)
+        {
+            _distUnitOfWork = distUnitOfWork;
+            _cloudinaryService = cloudinaryService;
+        }
+
+        public async Task<BaseTableResponse<SongResponseDto>> GetSongs(BaseSearchDto<SongRequestDto> dto)
+        {
+            var result = new BaseTableResponse<SongResponseDto>();
+
+            var repoSong = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistSongs>()
+                .QueryAll();
+
+            var query = repoSong.Where(x => !x.IsDeleted);
+
+            if (!string.IsNullOrEmpty(dto.SearchParams.Keyword))
+            {
+                query = query.Where(x =>
+                    x.Title.Contains(dto.SearchParams.Keyword));
+            }
+
+            var totalRecords = query.Count();
+
+            var data = query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip(dto.Start)
+                .Take(dto.PageSize)
+                .Select(x => new SongResponseDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    Duration = x.Duration,
+                    AlbumId = x.AlbumId,
+                    ReleaseDate = x.ReleaseDate,
+                    FileUrl = _cloudinaryService.BuildAudioUrl(x.FileUrl),
+                    ImgUrl = string.IsNullOrWhiteSpace(x.ImgUrl) ? null : _cloudinaryService.BuildImageUrl(x.ImgUrl),
+                    ArtistName = x.Artist.Name,
+                    IsActived = x.IsActived,
+                    IsDeleted = x.IsDeleted,
+                    CreatedAt = x.CreatedAt,
+                    CreatedBy = x.CreatedBy
+                })
+                .ToList();
+
+            result.TotalRecords = totalRecords;
+            result.Data = data;
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(string.Format(Messages.Action.GetSuccess, "songs"));
+        }
+
+        public async Task<BaseResponse<SongResponseDto>> GetSongDetail(long id, long userId)
+        {
+            var result = new BaseResponse<SongResponseDto>();
+
+            var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
+            var repoUserLike = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistUserLikes>().QueryAll();
+
+            var song = repoSong.FirstOrDefault(x => x.Id == id && !x.IsDeleted);
+            var isLiked = repoUserLike.Any(x => x.UserId == userId && x.SongId == id);
+            if (song == null)
+            {
+                return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
+            }
+
+            result.Data = new SongResponseDto
+            {
+                Id = song.Id,
+                Title = song.Title,
+                Duration = song.Duration,
+                FileUrl = _cloudinaryService.BuildAudioUrl(song.FileUrl),
+                ImgUrl = string.IsNullOrWhiteSpace(song.ImgUrl) ? null : _cloudinaryService.BuildImageUrl(song.ImgUrl),
+                ReleaseDate = song.ReleaseDate,
+                AlbumId = song.AlbumId,
+                ArtistName = song.ArtistId.ToString(),
+                IsLiked = isLiked,
+                IsActived = song.IsActived,
+                IsDeleted = song.IsDeleted,
+                CreatedAt = song.CreatedAt,
+                CreatedBy = song.CreatedBy
+            };
+
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(string.Format(Messages.Action.GetSuccess, "song"));
+        }
+
+        public async Task<BaseResponse<SongResponseDto>> IncrementView(long id)
+        {
+            var result = new BaseResponse<SongResponseDto>();
+
+            var repo = _distUnitOfWork.GetRepositoryAsync<DistSongs>();
+
+            var song = await repo.FindByIdAsync(id);
+
+            if (song == null || song.IsDeleted)
+                return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
+
+            song.Views += 1;
+
+            await repo.UpdateAsync(song);
+            await _distUnitOfWork.SaveChangesAsync();
+
+            result.Data = new SongResponseDto();
+
+            return result.Success(string.Format(Messages.Action.UpdateSuccess, "view")); ;
+        }
+
+        public async Task<BaseResponse<SongResponseDto>> ToggleLike(long id, long userId)
+        {
+            var result = new BaseResponse<SongResponseDto>();
+
+            var repoSong = _distUnitOfWork.GetRepositoryAsync<DistSongs>();
+            var repoLike = _distUnitOfWork.GetRepositoryAsync<DistUserLikes>();
+
+            var song = await repoSong.FindByIdAsync(id);
+
+            if (song == null || song.IsDeleted)
+                return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
+
+            var existed = repoLike
+                .QueryCondition(x => x.UserId == userId && x.SongId == id && !x.IsDeleted)
+                .FirstOrDefault();
+
+            if (existed != null)
+            {
+                await repoLike.DeleteAsync(existed);
+                if (song.Likes > 0)
+                {
+                    song.Likes--;
+                }
+            }
+            else
+            {
+                await repoLike.AddAsync(new DistUserLikes
+                {
+                    UserId = userId,
+                    SongId = id,
+                    CreatedBy = userId
+                });
+                song.Likes += 1;
+            }
+
+            await repoSong.UpdateAsync(song);
+            await _distUnitOfWork.SaveChangesAsync();
+
+            result.Data = new SongResponseDto();
+
+            return result.Success(string.Format(Messages.Action.UpdateSuccess, "like"));
+        }
+
+        public async Task<BaseResponse<SongResponseDto>> CreateSong(SongCreateDto dto, long userId)
+        {
+            var result = new BaseResponse<SongResponseDto>();
+
+            var repoSongWrite = _distUnitOfWork
+                .GetRepositoryAsync<DistSongs>();
+
+            var extension = Path.GetExtension(dto.FileUrl.FileName);
+
+            var tempFile = Path.Combine(
+                Path.GetTempPath(),
+                $"{Guid.NewGuid()}{extension}");
+
+            await using (var stream = dto.FileUrl.OpenReadStream())
+            await using (var fs = System.IO.File.Create(tempFile))
+            {
+                await stream.CopyToAsync(fs);
+            }
+
+            int duration = 0;
+
+            try
+            {
+                var tagFile = TagLib.File.Create(tempFile);
+
+                duration = (int)tagFile
+                    .Properties
+                    .Duration
+                    .TotalSeconds;
+            }
+            catch{}
+
+            System.IO.File.Delete(tempFile);
+
+            var uploadAudioTask = _cloudinaryService
+                .UploadAudioAsync(dto.FileUrl);
+
+            var uploadImageTask = _cloudinaryService
+                .UploadMusicImageAsync(dto.ImgUrl);
+
+            await Task.WhenAll(uploadAudioTask, uploadImageTask);
+
+            var uploadAudio = await uploadAudioTask;
+            var uploadImage = await uploadImageTask;
+
+            if (string.IsNullOrEmpty(uploadAudio.Data))
+            {
+                return result.Fail(
+                    string.Format(Messages.Action.UploadFail, "audio"));
+            }
+
+            if (string.IsNullOrEmpty(uploadImage.Data))
+            {
+                return result.Fail(
+                    string.Format(Messages.Action.UploadFail, "image"));
+            }
+
+            var entity = new DistSongs
+            {
+                Title = dto.Title,
+                Duration = duration,
+                ReleaseDate = dto.ReleaseDate,
+                FileUrl = uploadAudio.Data,
+                ImgUrl = uploadImage.Data,
+                AlbumId = dto.AlbumId,
+                ArtistId = dto.ArtistId,
+                CreatedBy = userId,
+            };
+
+            await repoSongWrite.AddAsync(entity);
+
+            await _distUnitOfWork.SaveChangesAsync();
+
+            result.Data = new SongResponseDto
+            {
+                Title = entity.Title,
+                Duration = entity.Duration,
+                FileUrl = _cloudinaryService
+                    .BuildAudioUrl(entity.FileUrl),
+
+                ImgUrl = _cloudinaryService
+                    .BuildImageUrl(entity.ImgUrl)
+            };
+
+            return result.Success(
+                string.Format(Messages.Action.CreateSuccess, "song"));
+        }
+    }
+}

@@ -20,9 +20,9 @@ namespace MS_API.Extensions
         public static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<CrmDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("CRMConnection")));
+                options.UseNpgsql(configuration.GetConnectionString("CRMConnection")));
             services.AddDbContext<DistDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DISTConnection")));
+                options.UseNpgsql(configuration.GetConnectionString("DISTConnection")));
 
             return services;
         }

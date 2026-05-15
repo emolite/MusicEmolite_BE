@@ -23,5 +23,34 @@ namespace MS_API.Controllers
             var result = await _albumsService.GetAlbums(dto, UserId);
             return Ok(result);
         }
+
+        [AllowAnonymous]
+        [HttpPost("public/search")]
+        public async Task<IActionResult> GetPublicAlbums([FromBody] BaseSearchDto<AlbumRequestDto> dto)
+        {
+            var result = await _albumsService.GetPublicAlbums(dto);
+            return Ok(result);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateAlbum([FromBody] AlbumCreateDto dto)
+        {
+            var result = await _albumsService.CreateAlbum(dto, UserId);
+            return Ok(result);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateAlbum(long id, [FromBody] AlbumUpdateDto dto)
+        {
+            var result = await _albumsService.UpdateAlbum(id, dto, UserId);
+            return Ok(result);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteAlbum(long id)
+        {
+            var result = await _albumsService.DeleteAlbum(id, UserId);
+            return Ok(result);
+        }
     }
 }

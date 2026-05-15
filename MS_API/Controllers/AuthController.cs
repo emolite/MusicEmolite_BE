@@ -47,6 +47,5 @@ namespace MS_API.Controllers
             var token = authHeader.Substring("Bearer ".Length).Trim();
             return await _authService.VerifyTokenAsync(token);
         }
-
     }
 }

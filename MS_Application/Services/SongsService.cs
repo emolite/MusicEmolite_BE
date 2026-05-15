@@ -23,15 +23,13 @@ namespace MS_Application.Services
             _cloudinaryService = cloudinaryService;
         }
 
-        public async Task<BaseTableResponse<SongResponseDto>> GetSongs(BaseSearchDto<SongRequestDto> dto)
+        public async Task<BaseTableResponse<SongResponseDto>> GetSongs(BaseSearchDto<SongRequestDto> dto, long userId)
         {
             var result = new BaseTableResponse<SongResponseDto>();
 
-            var repoSong = _distUnitOfWork
-                .GetRepositoryReadOnlyAsync<DistSongs>()
-                .QueryAll();
+            var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
 
-            var query = repoSong.Where(x => !x.IsDeleted);
+            var query = repoSong.Where(x => !x.IsDeleted && x.CreatedBy == userId);
 
             if (!string.IsNullOrEmpty(dto.SearchParams.Keyword))
             {
@@ -55,6 +53,51 @@ namespace MS_Application.Services
                     FileUrl = _cloudinaryService.BuildAudioUrl(x.FileUrl),
                     ImgUrl = string.IsNullOrWhiteSpace(x.ImgUrl) ? null : _cloudinaryService.BuildImageUrl(x.ImgUrl),
                     ArtistName = x.Artist.Name,
+                    TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.Type),
+                    IsActived = x.IsActived,
+                    IsDeleted = x.IsDeleted,
+                    CreatedAt = x.CreatedAt,
+                    CreatedBy = x.CreatedBy
+                })
+                .ToList();
+
+            result.TotalRecords = totalRecords;
+            result.Data = data;
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(string.Format(Messages.Action.GetSuccess, "songs"));
+        }
+
+        public async Task<BaseTableResponse<SongResponseDto>> GetPublicSongs(BaseSearchDto<SongRequestDto> dto)
+        {
+            var result = new BaseTableResponse<SongResponseDto>();
+
+            var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
+
+            var query = repoSong.Where(x => !x.IsDeleted && x.Type == 1);
+
+            if (!string.IsNullOrEmpty(dto.SearchParams.Keyword))
+            {
+                query = query.Where(x =>
+                    x.Title.Contains(dto.SearchParams.Keyword));
+            }
+            var totalRecords = query.Count();
+
+            var data = query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip(dto.Start)
+                .Take(dto.PageSize)
+                .Select(x => new SongResponseDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    Duration = x.Duration,
+                    AlbumId = x.AlbumId,
+                    ReleaseDate = x.ReleaseDate,
+                    FileUrl = _cloudinaryService.BuildAudioUrl(x.FileUrl),
+                    ImgUrl = string.IsNullOrWhiteSpace(x.ImgUrl) ? null : _cloudinaryService.BuildImageUrl(x.ImgUrl),
+                    ArtistName = x.Artist.Name,
+                    TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.Type),
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,
@@ -93,6 +136,7 @@ namespace MS_Application.Services
                 ReleaseDate = song.ReleaseDate,
                 AlbumId = song.AlbumId,
                 ArtistName = song.ArtistId.ToString(),
+                TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)song.Type),
                 IsLiked = isLiked,
                 IsActived = song.IsActived,
                 IsDeleted = song.IsDeleted,
@@ -234,6 +278,7 @@ namespace MS_Application.Services
                 FileUrl = uploadAudio.Data,
                 ImgUrl = uploadImage.Data,
                 AlbumId = dto.AlbumId,
+                Type = dto.Type,
                 ArtistId = dto.ArtistId,
                 CreatedBy = userId,
             };

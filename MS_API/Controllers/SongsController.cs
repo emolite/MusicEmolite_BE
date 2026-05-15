@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MS_API.Extensions;
 using MS_Application.DataTransferObjects.Base;
@@ -22,7 +23,16 @@ namespace MS_API.Controllers
         [HttpPost("search")]
         public async Task<IActionResult> GetSongs(BaseSearchDto<SongRequestDto> dto)
         {
-            var result = await _songsService.GetSongs(dto);
+            var result = await _songsService.GetSongs(dto, UserId);
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpPost("public/search")]
+        public async Task<IActionResult> GetPublicSongs([FromBody] BaseSearchDto<SongRequestDto> dto)
+        {
+            var result = await _songsService.GetPublicSongs(dto);
+
             return Ok(result);
         }
 

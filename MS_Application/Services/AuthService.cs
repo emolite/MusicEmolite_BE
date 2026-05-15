@@ -34,7 +34,7 @@ namespace MS_Application.Services
                 result.Code = ResponseStatusCode.Status404;
                 return result.Fail(Messages.Validation.NotFound);
             }
-            var token = _jwtHelper.GenerateToken(user.Id, user.RefCode, user.Username, user.RoleCode, user.Email, expireMinutes: 120);
+            var token = _jwtHelper.GenerateToken(user.Id, user.RefCode, user.Username, user.RoleCode, user.Email, user.UserType, expireMinutes: 120);
 
             var data = new LoginResponseDto
             {
@@ -111,6 +111,7 @@ namespace MS_Application.Services
         {
             var result = new BaseResponse<UserVerifyDto>();
             var repoProfile = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUserProfile>().QueryAll();
+            var repoUser = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUser>().QueryAll();
 
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
@@ -125,6 +126,14 @@ namespace MS_Application.Services
             var roleCode = jwtToken.Claims.FirstOrDefault(c => c.Type == "RoleCode")?.Value;
             var username = jwtToken.Claims.FirstOrDefault(c => c.Type == "unique_name")?.Value;
             var email = jwtToken.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+            var userTypeStr = jwtToken.Claims.FirstOrDefault(c => c.Type == "user_type")?.Value;
+
+            short userTypeValue = 0;
+
+            if (!string.IsNullOrEmpty(userTypeStr))
+            {
+                short.TryParse(userTypeStr, out userTypeValue);
+            }
 
             CrmUserProfile? profile = null;
             profile = repoProfile.FirstOrDefault(p => p.RefCode == refCode);
@@ -140,6 +149,7 @@ namespace MS_Application.Services
                 Username = username,
                 Email = email,
                 Profile = profile,
+                UserType = EnumHelper.GetDisplayName((MS_Domain.Enums.UserType)userTypeValue)
             };
             result.Data = data;
             result.Code = ResponseStatusCode.Status200;

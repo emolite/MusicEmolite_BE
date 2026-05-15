@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MS_Domain.Enums
 {
-    public enum AlbumType
+    public enum Type
     {
         [Display(Name = "Công khai")]
         Public = 1,

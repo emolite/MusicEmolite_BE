@@ -8,7 +8,7 @@ namespace MS_Application.DataTransferObjects.Albums
 
         public DateTime? ReleaseDate { get; set; }
 
-        public long ArtistId { get; set; }
+        public long? ArtistId { get; set; }
 
         public string AlbumTypeName { get; set; }
     }

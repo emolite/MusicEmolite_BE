@@ -6,7 +6,8 @@ namespace MS_Application.Services.Interfaces
 {
     public interface ISongsService
     {
-        Task<BaseTableResponse<SongResponseDto>> GetSongs(BaseSearchDto<SongRequestDto> dto);
+        Task<BaseTableResponse<SongResponseDto>> GetSongs(BaseSearchDto<SongRequestDto> dto, long userId);
+        Task<BaseTableResponse<SongResponseDto>> GetPublicSongs(BaseSearchDto<SongRequestDto> dto);
         Task<BaseResponse<SongResponseDto>> GetSongDetail(long id, long userId);
         Task<BaseResponse<SongResponseDto>> IncrementView(long id);
         Task<BaseResponse<SongResponseDto>> ToggleLike(long id, long userId);

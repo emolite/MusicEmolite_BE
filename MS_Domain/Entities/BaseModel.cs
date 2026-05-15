@@ -17,13 +17,13 @@ namespace MS_Application.DataTransferObjects.Base
         public bool IsDeleted { get; set; } = false;
 
         [Column("created_at")]
-        public DateTime? CreatedAt { get; set; } = DateTime.Now;
+        public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 
         [Column("created_by")]
         public long? CreatedBy { get; set; }
 
         [Column("updated_at")]
-        public DateTime? UpdatedAt { get; set; } = DateTime.Now;
+        public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
 
         [Column("updated_by")]
         public long? UpdatedBy { get; set; }

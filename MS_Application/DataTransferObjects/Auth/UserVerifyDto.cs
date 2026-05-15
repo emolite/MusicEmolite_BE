@@ -16,6 +16,7 @@ namespace MS_Application.DataTransferObjects.Auth
         public string Username { get; set; }
         public string Email { get; set; }
         public string RoleCode { get; set; }
+        public string UserType { get; set; }
         public CrmUserProfile Profile { get; set; }
     }
 }

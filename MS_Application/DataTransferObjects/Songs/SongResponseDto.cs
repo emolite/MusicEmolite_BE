@@ -18,5 +18,6 @@ namespace MS_Application.DataTransferObjects.Songs
         public long AlbumId { get; set; }
         public string ArtistName { get; set; }
         public bool IsLiked { get; set; }
+        public string TypeSong { get; set; }
     }
 }

@@ -29,6 +29,8 @@ namespace MS_Domain.Entities.DISTS
         public long? Views { get; set; } = 0;
         [Column("likes")]
         public long? Likes { get; set; } = 0;
+        [Column("type")]
+        public short Type { get; set; }
         public DistAlbums Album { get; set; }
         public DistArtists Artist { get; set; }
     }

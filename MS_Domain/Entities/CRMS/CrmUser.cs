@@ -18,6 +18,8 @@ namespace MS_Domain.Entities.CRMS
         public string PasswordHash { get; set; }
         [Column("role_code")]
         public string RoleCode { get; set; }
+        [Column("user_type")]
+        public short UserType { get; set; }
         public CrmUserProfile Profile { get; set; }
     }
 }

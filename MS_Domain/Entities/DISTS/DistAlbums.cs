@@ -16,7 +16,7 @@ namespace MS_Domain.Entities.DISTS
         [Column("release_date")]
         public DateTime ReleaseDate { get; set; }
         [Column("artist_id")]
-        public long ArtistId { get; set; }
+        public long? ArtistId { get; set; }
         [Column("album_type")]
         public byte AlbumType { get; set; }
 

@@ -9,7 +9,5 @@ namespace MS_Application.DataTransferObjects.Albums
     public class AlbumRequestDto
     {
         public string? Keyword { get; set; }
-
-        public byte? AlbumType { get; set; }
     }
 }

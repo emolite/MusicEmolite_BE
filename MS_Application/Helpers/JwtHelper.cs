@@ -18,7 +18,7 @@ namespace MS_Application.Helpers
                 throw new Exception("JWT Secret key must be at least 32 bytes long.");
         }
 
-        public string GenerateToken(long userId, string refCode, string username, string roleCode, string email, int expireMinutes = 60)
+        public string GenerateToken(long userId, string refCode, string username, string roleCode, string email, short userType, int expireMinutes = 60)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.UTF8.GetBytes(_secretKey);
@@ -31,7 +31,8 @@ namespace MS_Application.Helpers
             new Claim("RefCode", refCode),
             new Claim("RoleCode", roleCode),
             new Claim(ClaimTypes.Name, username),
-            new Claim(ClaimTypes.Email, email)
+            new Claim(ClaimTypes.Email, email),
+            new Claim("user_type", userType.ToString())
         }),
                 Expires = DateTime.UtcNow.AddMinutes(expireMinutes),
                 SigningCredentials = new SigningCredentials(

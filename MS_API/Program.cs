@@ -23,6 +23,7 @@ builder.Services
     .AddCorsConfiguration()
     .AddJwtAuthentication(builder.Configuration)
     .AddCloudinaryConfiguration(builder.Configuration)
+    .AddLyricsApiConfiguration(builder.Configuration)
     .AddApplicationServices();
 
 var app = builder.Build();

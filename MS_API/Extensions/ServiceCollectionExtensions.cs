@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MS_Application.DataTransferObjects.Cloudinary;
+using MS_Application.DataTransferObjects.Lyrics;
 using MS_Application.External;
 using MS_Application.Helpers;
 using MS_Application.Services;
@@ -100,9 +101,17 @@ namespace MS_API.Extensions
             return services;
         }
 
-        public static IServiceCollection AddCloudinaryConfiguration(
-    this IServiceCollection services,
-    IConfiguration configuration)
+        public static IServiceCollection AddLyricsApiConfiguration(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<LyricsApiSettingsDto>(
+                configuration.GetSection("LyricsAPI"));
+
+            services.AddHttpClient();
+
+            return services;
+        }
+
+        public static IServiceCollection AddCloudinaryConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<CloudinarySettingsDto>(
                 configuration.GetSection("CloudinarySettings"));

@@ -2,10 +2,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MS_API.Extensions;
+using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
+using MS_Application.DataTransferObjects.Lyrics;
 using MS_Application.DataTransferObjects.Songs;
 using MS_Application.Services;
 using MS_Application.Services.Interfaces;
+using MS_Application.Services.Interfaces.External;
 
 namespace MS_API.Controllers
 {
@@ -13,11 +16,13 @@ namespace MS_API.Controllers
     [ApiController]
     public class SongsController : BaseController
     {
+        private readonly ILyricsService _lyricsService;
         private readonly ISongsService _songsService;
 
-        public SongsController(ISongsService songsService)
+        public SongsController(ISongsService songsService, ILyricsService lyricsService)
         {
             _songsService = songsService;
+            _lyricsService = lyricsService;
         }
 
         [HttpPost("search")]
@@ -61,6 +66,20 @@ namespace MS_API.Controllers
         public async Task<IActionResult> ToggleLike(long id)
         {
             var result = await _songsService.ToggleLike(id, UserId);
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("lyrics")]
+        public async Task<IActionResult> GetLyrics([FromQuery] LyricsRequestDto request)
+        {
+            var result = await _lyricsService.GetLyricsAsync(request);
+            if (result.Code == ResponseStatusCode.Status404)
+                return NotFound("Lyrics not found");
+
+            if (result.Code == ResponseStatusCode.Status400)
+                return BadRequest(result.Message);
+
             return Ok(result);
         }
     }

@@ -1,11 +1,13 @@
 ﻿using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
+using MS_Application.DataTransferObjects.Lyrics;
 using MS_Application.DataTransferObjects.Songs;
 using MS_Application.Helpers;
 using MS_Application.Repositories.Interfaces;
 using MS_Application.Services.Interfaces;
 using MS_Application.Services.Interfaces.External;
 using MS_Domain.Entities.DISTS;
+using System.Text.Json;
 using TagLib;
 
 namespace MS_Application.Services
@@ -54,6 +56,8 @@ namespace MS_Application.Services
                     ImgUrl = string.IsNullOrWhiteSpace(x.ImgUrl) ? null : _cloudinaryService.BuildImageUrl(x.ImgUrl),
                     ArtistName = x.Artist.Name,
                     TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.Type),
+                    Views = x.Views,
+                    Likes = x.Likes,
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,
@@ -62,6 +66,7 @@ namespace MS_Application.Services
                 .ToList();
 
             result.TotalRecords = totalRecords;
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
             result.Code = ResponseStatusCode.Status200;
 
@@ -98,6 +103,8 @@ namespace MS_Application.Services
                     ImgUrl = string.IsNullOrWhiteSpace(x.ImgUrl) ? null : _cloudinaryService.BuildImageUrl(x.ImgUrl),
                     ArtistName = x.Artist.Name,
                     TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.Type),
+                    Views = x.Views,
+                    Likes = x.Likes,
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,
@@ -106,6 +113,7 @@ namespace MS_Application.Services
                 .ToList();
 
             result.TotalRecords = totalRecords;
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
             result.Code = ResponseStatusCode.Status200;
 
@@ -117,14 +125,20 @@ namespace MS_Application.Services
             var result = new BaseResponse<SongResponseDto>();
 
             var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
+            var repoSongLyric = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongLyrics>().QueryAll();
             var repoUserLike = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistUserLikes>().QueryAll();
 
             var song = repoSong.FirstOrDefault(x => x.Id == id && !x.IsDeleted);
+            var lyrics = repoSongLyric.FirstOrDefault(x => x.SongId == id && !x.IsDeleted);
             var isLiked = repoUserLike.Any(x => x.UserId == userId && x.SongId == id);
             if (song == null)
             {
                 return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
             }
+            var deserializeOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
 
             result.Data = new SongResponseDto
             {
@@ -138,6 +152,10 @@ namespace MS_Application.Services
                 ArtistName = song.ArtistId.ToString(),
                 TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)song.Type),
                 IsLiked = isLiked,
+                Lyrics = lyrics?.Content,
+                SyncedLyrics = lyrics?.SyncedJson == null
+            ? null
+            : JsonSerializer.Deserialize<List<LyricsLineDto>>(lyrics.SyncedJson.ToString(), deserializeOptions),
                 IsActived = song.IsActived,
                 IsDeleted = song.IsDeleted,
                 CreatedAt = song.CreatedAt,
@@ -152,9 +170,7 @@ namespace MS_Application.Services
         public async Task<BaseResponse<SongResponseDto>> IncrementView(long id)
         {
             var result = new BaseResponse<SongResponseDto>();
-
             var repo = _distUnitOfWork.GetRepositoryAsync<DistSongs>();
-
             var song = await repo.FindByIdAsync(id);
 
             if (song == null || song.IsDeleted)
@@ -164,9 +180,6 @@ namespace MS_Application.Services
 
             await repo.UpdateAsync(song);
             await _distUnitOfWork.SaveChangesAsync();
-
-            result.Data = new SongResponseDto();
-
             return result.Success(string.Format(Messages.Action.UpdateSuccess, "view")); ;
         }
 
@@ -208,8 +221,6 @@ namespace MS_Application.Services
             await repoSong.UpdateAsync(song);
             await _distUnitOfWork.SaveChangesAsync();
 
-            result.Data = new SongResponseDto();
-
             return result.Success(string.Format(Messages.Action.UpdateSuccess, "like"));
         }
 
@@ -217,8 +228,8 @@ namespace MS_Application.Services
         {
             var result = new BaseResponse<SongResponseDto>();
 
-            var repoSongWrite = _distUnitOfWork
-                .GetRepositoryAsync<DistSongs>();
+            var repoSongWrite = _distUnitOfWork.GetRepositoryAsync<DistSongs>();
+            var repoLyricsWrite = _distUnitOfWork.GetRepositoryAsync<DistSongLyrics>();
 
             var extension = Path.GetExtension(dto.FileUrl.FileName);
 
@@ -284,8 +295,35 @@ namespace MS_Application.Services
             };
 
             await repoSongWrite.AddAsync(entity);
-
             await _distUnitOfWork.SaveChangesAsync();
+
+            if (!string.IsNullOrWhiteSpace(dto.Lyrics))
+            {
+                var serializeOptions = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                var deserializeOptions = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var lyricsDto = JsonSerializer.Deserialize<SongLyricsCreateDto>(dto.Lyrics, deserializeOptions);
+
+                var lyrics = new DistSongLyrics
+                {
+                    SongId = entity.Id,
+                    Content = lyricsDto?.Lyrics ?? dto.Lyrics,
+                    SyncedJson = lyricsDto?.SyncedLyrics != null
+                        ? JsonSerializer.Serialize(lyricsDto.SyncedLyrics, serializeOptions)
+                        : null,
+                    CreatedBy = userId,
+                };
+
+                await repoLyricsWrite.AddAsync(lyrics);
+                await _distUnitOfWork.SaveChangesAsync();
+            }
 
             result.Data = new SongResponseDto
             {

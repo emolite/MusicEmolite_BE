@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using MS_Application.DataTransferObjects.Base;
+using MS_Application.DataTransferObjects.Lyrics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,5 +20,9 @@ namespace MS_Application.DataTransferObjects.Songs
         public string ArtistName { get; set; }
         public bool IsLiked { get; set; }
         public string TypeSong { get; set; }
+        public string? Lyrics { get; set; }
+        public long? Views { get; set; }
+        public long? Likes {  get; set; }
+        public List<LyricsLineDto>? SyncedLyrics { get; set; }
     }
 }

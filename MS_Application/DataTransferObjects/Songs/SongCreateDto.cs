@@ -17,7 +17,7 @@ namespace MS_Application.DataTransferObjects.Songs
         public long AlbumId { get; set; }
         public IFormFile FileUrl { get; set; }
         public IFormFile ImgUrl { get; set; }
-        public long ArtistId { get; set; }
+        public string ArtistName { get; set; }
         public short Type { get; set; }
         public string? Lyrics { get; set; }
     }

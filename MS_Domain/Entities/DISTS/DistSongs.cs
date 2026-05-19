@@ -24,7 +24,7 @@ namespace MS_Domain.Entities.DISTS
         [Column("img_url")]
         public string? ImgUrl { get; set; }
         [Column("artist_id")]
-        public long ArtistId { get; set; }
+        public long? ArtistId { get; set; }
         [Column("views")]
         public long? Views { get; set; } = 0;
         [Column("likes")]

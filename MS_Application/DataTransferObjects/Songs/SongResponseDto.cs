@@ -23,6 +23,7 @@ namespace MS_Application.DataTransferObjects.Songs
         public string? Lyrics { get; set; }
         public long? Views { get; set; }
         public long? Likes {  get; set; }
+        public List<long> AlbumIds { get; set; } = new();
         public List<LyricsLineDto>? SyncedLyrics { get; set; }
     }
 }

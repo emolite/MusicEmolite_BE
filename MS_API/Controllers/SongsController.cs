@@ -55,6 +55,13 @@ namespace MS_API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("albums")]
+        public async Task<IActionResult> AddSongToAlbum(long songId, long albumId)
+        {
+            var result = await _songsService.AddSongToAlbum(songId, albumId, User.GetUserId());
+            return Ok(result);
+        }
+
         [HttpPost("{id}/view")]
         public async Task<IActionResult> IncrementView(long id)
         {
@@ -81,6 +88,22 @@ namespace MS_API.Controllers
                 return BadRequest(result.Message);
 
             return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("lyrics/{id}")]
+        public async Task<IActionResult> GetLyricsById(int id)
+        {
+            var response = await _lyricsService.GetLyricsByIdAsync(id);
+            return Ok(response);
+        }
+
+        [AllowAnonymous]
+        [HttpPost("lyrics/search")]
+        public async Task<IActionResult> SearchLyrics([FromBody] BaseSearchDto<LyricsSearchRequestDto> request)
+        {
+            var response = await _lyricsService.SearchLyricsAsync(request);
+            return Ok(response);
         }
     }
 }

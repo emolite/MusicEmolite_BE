@@ -12,5 +12,6 @@ namespace MS_Application.Services.Interfaces
         Task<BaseResponse<SongResponseDto>> IncrementView(long id);
         Task<BaseResponse<SongResponseDto>> ToggleLike(long id, long userId);
         Task<BaseResponse<SongResponseDto>> CreateSong(SongCreateDto dto, long userId);
+        Task<BaseResponse<SongResponseDto>> AddSongToAlbum(long songId, long albumId, long userId);
     }
 }

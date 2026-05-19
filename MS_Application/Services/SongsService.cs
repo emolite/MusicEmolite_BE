@@ -1,4 +1,5 @@
-﻿using MS_Application.Constants;
+﻿using Microsoft.EntityFrameworkCore;
+using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Lyrics;
 using MS_Application.DataTransferObjects.Songs;
@@ -30,6 +31,7 @@ namespace MS_Application.Services
             var result = new BaseTableResponse<SongResponseDto>();
 
             var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
+            var repoSongAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongAlbums>().QueryAll();
 
             var query = repoSong.Where(x => !x.IsDeleted && x.CreatedBy == userId);
 
@@ -58,6 +60,10 @@ namespace MS_Application.Services
                     TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.Type),
                     Views = x.Views,
                     Likes = x.Likes,
+                    AlbumIds = repoSongAlbum
+                        .Where(sa => sa.SongId == x.Id && !sa.IsDeleted)
+                        .Select(sa => sa.AlbumId)
+                        .ToList(),
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,
@@ -78,6 +84,7 @@ namespace MS_Application.Services
             var result = new BaseTableResponse<SongResponseDto>();
 
             var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
+            var repoSongAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongAlbums>().QueryAll();
 
             var query = repoSong.Where(x => !x.IsDeleted && x.Type == 1);
 
@@ -105,6 +112,10 @@ namespace MS_Application.Services
                     TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.Type),
                     Views = x.Views,
                     Likes = x.Likes,
+                    AlbumIds = repoSongAlbum
+                        .Where(sa => sa.SongId == x.Id && !sa.IsDeleted)
+                        .Select(sa => sa.AlbumId)
+                        .ToList(),
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,
@@ -230,6 +241,7 @@ namespace MS_Application.Services
 
             var repoSongWrite = _distUnitOfWork.GetRepositoryAsync<DistSongs>();
             var repoLyricsWrite = _distUnitOfWork.GetRepositoryAsync<DistSongLyrics>();
+            var repoArtistWrite = _distUnitOfWork.GetRepositoryAsync<DistArtists>();
 
             var extension = Path.GetExtension(dto.FileUrl.FileName);
 
@@ -281,6 +293,33 @@ namespace MS_Application.Services
                     string.Format(Messages.Action.UploadFail, "image"));
             }
 
+            long? artistId = null;
+
+            if (!string.IsNullOrWhiteSpace(dto.ArtistName))
+            {
+                var normalizedName = dto.ArtistName.Trim();
+
+                var artist = await repoArtistWrite
+                    .QueryCondition(x =>
+                        x.Name.ToLower() == normalizedName.ToLower())
+                    .FirstOrDefaultAsync();
+
+                if (artist == null)
+                {
+                    artist = new DistArtists
+                    {
+                        Name = normalizedName,
+                        StageName = normalizedName,
+                        CreatedBy = userId
+                    };
+
+                    await repoArtistWrite.AddAsync(artist);
+                    await _distUnitOfWork.SaveChangesAsync();
+                }
+
+                artistId = artist.Id;
+            }
+
             var entity = new DistSongs
             {
                 Title = dto.Title,
@@ -290,7 +329,7 @@ namespace MS_Application.Services
                 ImgUrl = uploadImage.Data,
                 AlbumId = dto.AlbumId,
                 Type = dto.Type,
-                ArtistId = dto.ArtistId,
+                ArtistId = artistId,
                 CreatedBy = userId,
             };
 
@@ -338,6 +377,42 @@ namespace MS_Application.Services
 
             return result.Success(
                 string.Format(Messages.Action.CreateSuccess, "song"));
+        }
+
+        public async Task<BaseResponse<SongResponseDto>> AddSongToAlbum(long songId, long albumId, long userId)
+        {
+            var result = new BaseResponse<SongResponseDto>();
+
+            var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
+            var repoAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistAlbums>().QueryAll();
+            var repoSongAlbum = _distUnitOfWork.GetRepositoryAsync<DistSongAlbums>();
+
+            var song = repoSong.FirstOrDefault(x => x.Id == songId && !x.IsDeleted);
+            if (song == null)
+                return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
+
+            var album = repoAlbum.FirstOrDefault(x => x.Id == albumId && !x.IsDeleted);
+            if (album == null)
+                return result.Fail(string.Format(Messages.Validation.NotFound, "album"));
+
+            var existed = repoSongAlbum
+                .QueryCondition(x => x.SongId == songId && x.AlbumId == albumId && !x.IsDeleted)
+                .FirstOrDefault();
+
+            if (existed != null)
+                return result.Fail("Bài hát đã có trong album này");
+
+            await repoSongAlbum.AddAsync(new DistSongAlbums
+            {
+                SongId = songId,
+                AlbumId = albumId,
+                CreatedBy = userId
+            });
+
+            await _distUnitOfWork.SaveChangesAsync();
+
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(string.Format(Messages.Action.UpdateSuccess, "album"));
         }
     }
 }

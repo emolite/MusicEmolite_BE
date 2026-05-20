@@ -6,6 +6,7 @@ using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Lyrics;
 using MS_Application.DataTransferObjects.Songs;
+using MS_Application.External;
 using MS_Application.Services;
 using MS_Application.Services.Interfaces;
 using MS_Application.Services.Interfaces.External;
@@ -18,11 +19,13 @@ namespace MS_API.Controllers
     {
         private readonly ILyricsService _lyricsService;
         private readonly ISongsService _songsService;
+        private readonly IYoutubeService _youtubeService;
 
-        public SongsController(ISongsService songsService, ILyricsService lyricsService)
+        public SongsController(ISongsService songsService, ILyricsService lyricsService, IYoutubeService youtubeService)
         {
             _songsService = songsService;
             _lyricsService = lyricsService;
+            _youtubeService = youtubeService;
         }
 
         [HttpPost("search")]
@@ -104,6 +107,33 @@ namespace MS_API.Controllers
         {
             var response = await _lyricsService.SearchLyricsAsync(request);
             return Ok(response);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("youtube/search")]
+        public async Task<IActionResult> SearchYoutube([FromQuery] string q)
+        {
+            var result = await _youtubeService.SearchSongsAsync(q);
+
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("youtube/stream/{videoId}")]
+        public async Task<IActionResult> GetYoutubeStream(string videoId)
+        {
+            var result = await _youtubeService.GetAudioStreamUrlAsync(videoId);
+
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("youtube/playlist/{playlistId}")]
+        public async Task<IActionResult> GetPlaylistSongs(string playlistId)
+        {
+            var result = await _youtubeService.GetPlaylistSongsAsync(playlistId);
+
+            return Ok(result);
         }
     }
 }

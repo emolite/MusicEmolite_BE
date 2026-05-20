@@ -54,35 +54,40 @@ namespace MS_Application.External
 
         public async Task<BaseResponse<YoutubeStreamResponseDto>> GetAudioStreamUrlAsync(string videoId)
         {
-            var manifest = await _youtube
-                .Videos
-                .Streams
-                .GetManifestAsync(videoId);
+            try
+            {
+                var manifest = await _youtube.Videos.Streams.GetManifestAsync(videoId);
 
-            var streamInfo = manifest
-                .GetAudioOnlyStreams()
-                .GetWithHighestBitrate();
+                var streamInfo = manifest.GetAudioOnlyStreams().GetWithHighestBitrate();
 
-            if (streamInfo == null)
+                if (streamInfo == null)
+                {
+                    return new BaseResponse<YoutubeStreamResponseDto>
+                    {
+                        Code = "404",
+                        Message = "Stream not found"
+                    };
+                }
+
+                return new BaseResponse<YoutubeStreamResponseDto>
+                {
+                    Code = "200",
+                    Message = "Success",
+                    Data = new YoutubeStreamResponseDto
+                    {
+                        StreamUrl = streamInfo.Url
+                    }
+                };
+            }
+            catch
             {
                 return new BaseResponse<YoutubeStreamResponseDto>
                 {
-                    Code = "404",
-                    Message = "Stream not found"
+                    Code = "500",
+                    Message = "Failed to get stream"
                 };
             }
-
-            return new BaseResponse<YoutubeStreamResponseDto>
-            {
-                Code = "200",
-                Message = "Success",
-                Data = new YoutubeStreamResponseDto
-                {
-                    StreamUrl = streamInfo.Url
-                }
-            };
         }
-
         public async Task<BaseTableResponse<YoutubeSongResponseDto>>GetPlaylistSongsAsync(string playlistId)
         {
             var data = new List<YoutubeSongResponseDto>();

@@ -18,9 +18,9 @@ namespace MS_Domain.Entities.DISTS
         [Column("release_date")]
         public DateOnly ReleaseDate { get; set; }
         [Column("album_id")]
-        public long AlbumId { get; set; }
+        public long? AlbumId { get; set; }
         [Column("file_url")]
-        public string FileUrl { get; set; }
+        public string? FileUrl { get; set; }
         [Column("img_url")]
         public string? ImgUrl { get; set; }
         [Column("artist_id")]
@@ -29,6 +29,16 @@ namespace MS_Domain.Entities.DISTS
         public long? Views { get; set; } = 0;
         [Column("likes")]
         public long? Likes { get; set; } = 0;
+
+        [Column("play_count")]
+        public long PlayCount { get; set; } = 0;
+
+        [Column("youtube_video_id")]
+        public string? YoutubeVideoId { get; set; }
+
+        [Column("source_type")]
+        public short? SourceType { get; set; }
+
         [Column("type")]
         public short Type { get; set; }
         public DistAlbums Album { get; set; }

@@ -116,6 +116,7 @@ namespace MS_Application.Services
                         .Where(sa => sa.SongId == x.Id && !sa.IsDeleted)
                         .Select(sa => sa.AlbumId)
                         .ToList(),
+                    YoutubeVideoId = x.YoutubeVideoId,
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,

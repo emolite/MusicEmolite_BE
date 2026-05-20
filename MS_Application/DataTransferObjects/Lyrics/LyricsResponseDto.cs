@@ -19,7 +19,7 @@ namespace MS_Application.DataTransferObjects.Lyrics
 
         public string Album { get; set; } = string.Empty;
 
-        public int Duration { get; set; }
+        public decimal Duration { get; set; }
 
         public bool Instrumental { get; set; }
 

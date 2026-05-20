@@ -135,5 +135,13 @@ namespace MS_API.Controllers
 
             return Ok(result);
         }
+
+        [HttpPost("play/{videoId}")]
+        public async Task<IActionResult> Play(string videoId)
+        {
+            var result = await _youtubeService.PlaySongAsync(videoId, UserId);
+
+            return Ok(result);
+        }
     }
 }

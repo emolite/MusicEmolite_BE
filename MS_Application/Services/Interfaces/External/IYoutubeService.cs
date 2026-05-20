@@ -1,4 +1,5 @@
 ﻿using MS_Application.DataTransferObjects.Base;
+using MS_Application.DataTransferObjects.Songs;
 using MS_Application.DataTransferObjects.Youtube;
 
 namespace MS_Application.Services.Interfaces.External
@@ -10,5 +11,7 @@ namespace MS_Application.Services.Interfaces.External
         Task<BaseResponse<YoutubeStreamResponseDto>>GetAudioStreamUrlAsync(string videoId);
 
         Task<BaseTableResponse<YoutubeSongResponseDto>>GetPlaylistSongsAsync(string playlistId);
+
+        Task<BaseResponse<SongResponseDto>> PlaySongAsync(string videoId, long userId);
     }
 }

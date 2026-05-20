@@ -65,7 +65,7 @@ namespace MS_Application.External
                     return new BaseResponse<YoutubeStreamResponseDto>
                     {
                         Code = "404",
-                        Message = "Stream not found"
+                        Message = $"No audio stream found for videoId: {videoId}"
                     };
                 }
 
@@ -79,12 +79,21 @@ namespace MS_Application.External
                     }
                 };
             }
-            catch
+            catch (Exception ex)
             {
+                var errorMessage = ex.Message;
+                var stackTrace = ex.StackTrace;
+
+                Console.WriteLine("========== YOUTUBE STREAM ERROR ==========");
+                Console.WriteLine($"VideoId: {videoId}");
+                Console.WriteLine($"Message: {errorMessage}");
+                Console.WriteLine($"StackTrace: {stackTrace}");
+                Console.WriteLine("==========================================");
+
                 return new BaseResponse<YoutubeStreamResponseDto>
                 {
                     Code = "500",
-                    Message = "Failed to get stream"
+                    Message = $"{errorMessage}"
                 };
             }
         }

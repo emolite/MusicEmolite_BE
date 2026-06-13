@@ -133,7 +133,10 @@ namespace MS_API.Extensions
                     settings.ApiSecret
                 );
 
-                return new Cloudinary(account);
+                var cloudinary = new Cloudinary(account);
+                cloudinary.Api.Secure = true;
+
+                return cloudinary;
             });
 
             services.AddSingleton<CloudinaryImageService>(provider =>
@@ -148,8 +151,10 @@ namespace MS_API.Extensions
                     settings.ApiSecret
                 );
 
-                return new CloudinaryImageService(
-                    new Cloudinary(account));
+                var cloudinary = new Cloudinary(account);
+                cloudinary.Api.Secure = true;
+
+                return new CloudinaryImageService(cloudinary);
             });
 
             return services;

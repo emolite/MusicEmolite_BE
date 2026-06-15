@@ -235,6 +235,21 @@ namespace MS_Application.Services
             return result;
         }
 
+        public async Task<BaseResponse<bool>> CheckUserNameExistAsync(string username)
+        {
+            var result = new BaseResponse<bool>();
+            var repoUser = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUser>().QueryAll();
+
+            var exists = repoUser.Any(x => x.Username != null && x.Username.ToLower() == username.ToLower());
+            result.Data = exists;
+            result.Code = ResponseStatusCode.Status200;
+            result.Message = exists
+                ? string.Format(Messages.Validation.Exists, "Username")
+                : string.Format(Messages.Validation.ValidValue, "Username");
+
+            return result;
+        }
+
         public async Task<BaseResponse<bool>> CheckIpAddressExistsAsync(string ipAddress)
         {
             var result = new BaseResponse<bool>();

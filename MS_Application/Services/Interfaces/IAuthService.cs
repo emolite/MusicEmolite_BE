@@ -1,6 +1,9 @@
-﻿using MS_Application.DataTransferObjects.Auth;
+﻿using MS_Application.Constants;
+using MS_Application.DataTransferObjects.Auth;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.GoogleLogin;
+using MS_Application.Repositories.Interfaces;
+using MS_Domain.Entities.CRMS;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +17,7 @@ namespace MS_Application.Services.Interfaces
         Task<BaseResponse<LoginResponseDto>> LoginAsync(LoginRequestDto dto);
         Task<BaseResponse<RegisterResponseDto>> RegisterAsync(RegisterRequestDto dto);
         Task<BaseResponse<bool>> CheckEmailExistsAsync(string email);
+        Task<BaseResponse<bool>> CheckUserNameExistAsync(string username);
         Task<BaseResponse<bool>> CheckIpAddressExistsAsync(string ipAddress);
         Task<BaseResponse<UserVerifyDto>> VerifyTokenAsync(string token);
         Task<BaseResponse<LoginResponseDto>> LoginWithGoogleAsync(GoogleLoginRequestDto dto);

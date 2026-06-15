@@ -47,6 +47,14 @@ namespace MS_API.Controllers
         }
 
         [AllowAnonymous]
+        [HttpGet("check-username")]
+        public async Task<IActionResult> CheckUserName([FromQuery] string username)
+        {
+            var result = await _authService.CheckUserNameExistAsync(username);
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
         [HttpGet("check-ip")]
         public async Task<IActionResult> CheckIp([FromQuery] string ipAddress)
         {

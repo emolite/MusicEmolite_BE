@@ -10,6 +10,6 @@ namespace MS_Application.Services.Interfaces.External
 {
     public interface IYoutubeAPIService
     {
-        Task<BaseTableResponse<YoutubeVideoDto>> SearchAsync(BaseSearchDto<YoutubeSearchRequestDto> request);
+        Task<BaseTableResponse<YoutubeVideoDto>> SearchAsync(BaseSearchDto<YoutubeSearchRequestDto> request, long userId);
     }
 }

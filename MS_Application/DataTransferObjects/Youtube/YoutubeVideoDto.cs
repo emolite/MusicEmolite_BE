@@ -17,6 +17,7 @@ namespace MS_Application.DataTransferObjects.Youtube
         public string ChannelId { get; set; } = "";
         public string Channel { get; set; } = "";
         public DateTime? PublishedAt { get; set; }
+        public bool IsLiked { get; set; }
 
         public string ThumbnailDefault { get; set; } = "";
         public string ThumbnailMedium { get; set; } = "";

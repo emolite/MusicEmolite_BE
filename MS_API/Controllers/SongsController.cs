@@ -41,16 +41,16 @@ namespace MS_API.Controllers
         [HttpPost("public/search")]
         public async Task<IActionResult> GetPublicSongs([FromBody] BaseSearchDto<SongRequestDto> dto)
         {
-            var result = await _songsService.GetPublicSongs(dto);
+            var result = await _songsService.GetPublicSongs(dto, UserId);
 
             return Ok(result);
-        }   
+        }
 
         [AllowAnonymous]
         [HttpPost("public/trending")]
         public async Task<IActionResult> GetTrendingSongs([FromBody] BaseSearchDto<SongRequestDto> dto)
         {
-            var result = await _songsService.GetTrendingSongs(dto);
+            var result = await _songsService.GetTrendingSongs(dto, UserId);
             return Ok(result);
         }
 
@@ -58,7 +58,7 @@ namespace MS_API.Controllers
         [HttpPost("public/newest")]
         public async Task<IActionResult> GetNewestSongs([FromBody] BaseSearchDto<SongRequestDto> dto)
         {
-            var response = await _songsService.GetNewestSongs(dto);
+            var response = await _songsService.GetNewestSongs(dto, UserId);
             return Ok(response);
         }
 
@@ -97,10 +97,10 @@ namespace MS_API.Controllers
             return Ok(result);
         }
 
-        [HttpPost("{id}/history")]
-        public async Task<IActionResult> AddSongHistory(long id)
+        [HttpPost("history")]
+        public async Task<IActionResult> AddSongHistory([FromBody] AddSongHistoryDto dto)
         {
-            var result = await _songsService.AddSongHistory(id, UserId);
+            var result = await _songsService.AddSongHistory(dto, UserId);
 
             return Ok(result);
         }
@@ -154,7 +154,7 @@ namespace MS_API.Controllers
         [HttpPost("youtube/search")]
         public async Task<IActionResult> SearchYoutube([FromBody] BaseSearchDto<YoutubeSearchRequestDto> request)
         {
-            var result = await _youtubeAPIService.SearchAsync(request);
+            var result = await _youtubeAPIService.SearchAsync(request, UserId);
 
             return Ok(result);
         }

@@ -2,7 +2,9 @@
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Youtube;
+using MS_Application.Repositories.Interfaces;
 using MS_Application.Services.Interfaces.External;
+using MS_Domain.Entities.DISTS;
 using System.Text.Json;
 using System.Xml;
 
@@ -12,17 +14,19 @@ public class YoutubeAPIService : IYoutubeAPIService
 {
     private readonly IConfiguration _configuration;
     private readonly HttpClient _httpClient;
+    private readonly IDistUnitOfWork _distUnitOfWork;
 
     public YoutubeAPIService(
         IConfiguration configuration,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory,
+        IDistUnitOfWork distUnitOfWork)
     {
         _configuration = configuration;
         _httpClient = httpClientFactory.CreateClient();
+        _distUnitOfWork = distUnitOfWork;
     }
 
-    public async Task<BaseTableResponse<YoutubeVideoDto>> SearchAsync(
-    BaseSearchDto<YoutubeSearchRequestDto> request)
+    public async Task<BaseTableResponse<YoutubeVideoDto>> SearchAsync(BaseSearchDto<YoutubeSearchRequestDto> request, long userId)
     {
         var response = new BaseTableResponse<YoutubeVideoDto>();
 
@@ -137,6 +141,49 @@ public class YoutubeAPIService : IYoutubeAPIService
 
         if (videoIds.Count > 0)
         {
+            var repoSong = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistSongs>()
+                .QueryAll();
+
+            var repoUserLike = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistUserLikes>()
+                .QueryAll();
+
+            var songByVideoId = repoSong
+                .Where(x =>
+                    !x.IsDeleted &&
+                    x.YoutubeVideoId != null &&
+                    videoIds.Contains(x.YoutubeVideoId))
+                .Select(x => new
+                {
+                    x.Id,
+                    x.YoutubeVideoId
+                })
+                .ToList();
+
+            var songIds = songByVideoId
+                .Select(x => x.Id)
+                .ToList();
+
+            var likedSongIds = repoUserLike
+                .Where(x =>
+                    !x.IsDeleted &&
+                    x.UserId == userId &&
+                    songIds.Contains(x.SongId))
+                .Select(x => x.SongId)
+                .ToList();
+
+            foreach (var video in videos)
+            {
+                var song = songByVideoId
+                    .FirstOrDefault(x =>
+                        x.YoutubeVideoId == video.VideoId);
+
+                video.IsLiked =
+                    song != null &&
+                    likedSongIds.Contains(song.Id);
+            }
+
             var detailsUrl =
                 $"https://www.googleapis.com/youtube/v3/videos" +
                 $"?part=contentDetails,statistics,status,player" +

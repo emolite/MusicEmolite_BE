@@ -7,6 +7,8 @@ using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Lyrics;
 using MS_Application.DataTransferObjects.Songs;
+using MS_Application.DataTransferObjects.Youtube;
+using MS_Application.External;
 using MS_Application.Services;
 using MS_Application.Services.Interfaces;
 using MS_Application.Services.Interfaces.External;
@@ -18,12 +20,14 @@ namespace MS_API.Controllers
     public class SongsController : BaseController
     {
         private readonly ILyricsService _lyricsService;
+        private readonly IYoutubeAPIService _youtubeAPIService;
         private readonly ISongsService _songsService;
 
-        public SongsController(ISongsService songsService, ILyricsService lyricsService)
+        public SongsController(ISongsService songsService, ILyricsService lyricsService, IYoutubeAPIService youtubeAPIService)
         {
             _songsService = songsService;
             _lyricsService = lyricsService;
+            _youtubeAPIService = youtubeAPIService;
         }
 
         [HttpPost("search")]
@@ -40,7 +44,7 @@ namespace MS_API.Controllers
             var result = await _songsService.GetPublicSongs(dto);
 
             return Ok(result);
-        }
+        }   
 
         [AllowAnonymous]
         [HttpPost("public/trending")]
@@ -143,6 +147,15 @@ namespace MS_API.Controllers
         public async Task<IActionResult> PublishLyrics([FromBody] PublishLyricsRequestDto request)
         {
             var result = await _lyricsService.PublishLyricsAsync(request);
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpPost("youtube/search")]
+        public async Task<IActionResult> SearchYoutube([FromBody] BaseSearchDto<YoutubeSearchRequestDto> request)
+        {
+            var result = await _youtubeAPIService.SearchAsync(request);
+
             return Ok(result);
         }
     }

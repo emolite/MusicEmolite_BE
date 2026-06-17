@@ -178,7 +178,7 @@ public class YoutubeAPIService : IYoutubeAPIService
                 var song = songByVideoId
                     .FirstOrDefault(x =>
                         x.YoutubeVideoId == video.VideoId);
-
+                video.SongId = song?.Id;
                 video.IsLiked =
                     song != null &&
                     likedSongIds.Contains(song.Id);

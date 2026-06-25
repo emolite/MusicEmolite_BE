@@ -83,21 +83,14 @@ namespace MS_Application.Services
             return result.Success(string.Format(Messages.Action.GetSuccess, "songs"));
         }
 
-        public async Task<BaseTableResponse<SongResponseDto>> GetPublicSongs(BaseSearchDto<SongRequestDto> dto)
+        public async Task<BaseTableResponse<SongResponseDto>> GetPublicSongs(BaseSearchDto<SongRequestDto> dto, long userId)
         {
             var result = new BaseTableResponse<SongResponseDto>();
 
-            var repoSong = _distUnitOfWork
-                .GetRepositoryReadOnlyAsync<DistSongs>()
-                .QueryAll();
-
-            var repoSongAlbum = _distUnitOfWork
-                .GetRepositoryReadOnlyAsync<DistSongAlbums>()
-                .QueryAll();
-
-            var repoAlbum = _distUnitOfWork
-                .GetRepositoryReadOnlyAsync<DistAlbums>()
-                .QueryAll();
+            var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
+            var repoSongAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongAlbums>().QueryAll();
+            var repoAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistAlbums>().QueryAll();
+            var repoUserLike = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistUserLikes>().QueryAll();
 
             var query = repoSong
                 .Where(x =>
@@ -120,7 +113,11 @@ namespace MS_Application.Services
                 var albumId = dto.SearchParams.AlbumId.Value;
 
                 query = query.Where(x =>
-                    x.AlbumId == albumId);
+                    x.AlbumId == albumId
+                    || repoSongAlbum.Any(sa =>
+                        sa.SongId == x.Id
+                        && sa.AlbumId == albumId
+                        && !sa.IsDeleted));
             }
 
             if (dto.SearchParams.Type.HasValue)
@@ -164,7 +161,6 @@ namespace MS_Application.Services
                     Id = x.Id,
                     Title = x.Title,
                     Duration = x.Duration,
-
                     AlbumId = x.AlbumId,
 
                     AlbumName = repoAlbum
@@ -189,8 +185,16 @@ namespace MS_Application.Services
                         (MS_Domain.Enums.Type)x.Type),
 
                     Views = x.Views,
-
                     Likes = x.Likes,
+
+                    IsLiked = repoUserLike.Any(l =>
+                        l.UserId == userId
+                        && l.SongId == x.Id
+                        && !l.IsDeleted),
+
+                    YoutubeVideoId = x.YoutubeVideoId,
+                    PlayCount = x.PlayCount,
+                    SourceType = x.SourceType,
 
                     AlbumIds = repoSongAlbum
                         .Where(sa =>
@@ -200,26 +204,18 @@ namespace MS_Application.Services
                         .ToList(),
 
                     IsActived = x.IsActived,
-
                     IsDeleted = x.IsDeleted,
-
                     CreatedAt = x.CreatedAt,
-
                     CreatedBy = x.CreatedBy
                 })
                 .ToList();
 
             result.TotalRecords = totalRecords;
-
-            result.TotalPages = (int)Math.Ceiling(
-                (double)totalRecords / dto.PageSize);
-
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
-
             result.Code = ResponseStatusCode.Status200;
 
-            return result.Success(
-                string.Format(Messages.Action.GetSuccess, "songs"));
+            return result.Success(string.Format(Messages.Action.GetSuccess, "songs"));
         }
 
         public async Task<BaseTableResponse<SongResponseDto>> GetRecentSongs(BaseSearchDto<SongRequestDto> dto, long userId)
@@ -230,19 +226,25 @@ namespace MS_Application.Services
                 .GetRepositoryReadOnlyAsync<DistSongs>()
                 .QueryAll();
 
-            var repoSongHistory = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongHistories>().QueryAll();
+            var repoSongHistory = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistSongHistories>()
+                .QueryAll();
 
             var repoSongAlbum = _distUnitOfWork
                 .GetRepositoryReadOnlyAsync<DistSongAlbums>()
                 .QueryAll();
 
+            var repoUserLike = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistUserLikes>()
+                .QueryAll();
+
             var recentSongIds = repoSongHistory
-    .Where(x =>
-        !x.IsDeleted &&
-        x.UserId == userId)
-    .OrderByDescending(x => x.PlayedAt)
-    .Select(x => x.SongId)
-    .Distinct();
+                .Where(x =>
+                    !x.IsDeleted &&
+                    x.UserId == userId)
+                .OrderByDescending(x => x.PlayedAt)
+                .Select(x => x.SongId)
+                .Distinct();
 
             var query = repoSong
                 .Where(x =>
@@ -252,16 +254,14 @@ namespace MS_Application.Services
             var totalRecords = query.Count();
 
             var data = query
-               .OrderByDescending(x =>
+                .OrderByDescending(x =>
                     repoSongHistory
                         .Where(h =>
                             h.SongId == x.Id &&
                             h.UserId == userId)
                         .Max(h => h.PlayedAt))
-
                 .Skip(dto.Start)
                 .Take(dto.PageSize)
-
                 .Select(x => new SongResponseDto
                 {
                     Id = x.Id,
@@ -285,6 +285,15 @@ namespace MS_Application.Services
                     Views = x.Views,
                     Likes = x.Likes,
 
+                    IsLiked = repoUserLike.Any(l =>
+                        l.UserId == userId
+                        && l.SongId == x.Id
+                        && !l.IsDeleted),
+
+                    YoutubeVideoId = x.YoutubeVideoId,
+                    PlayCount = x.PlayCount,
+                    SourceType = x.SourceType,
+
                     AlbumIds = repoSongAlbum
                         .Where(sa =>
                             sa.SongId == x.Id &&
@@ -297,21 +306,18 @@ namespace MS_Application.Services
                     CreatedAt = x.CreatedAt,
                     CreatedBy = x.CreatedBy
                 })
-
                 .ToList();
 
             result.TotalRecords = totalRecords;
-
-            result.TotalPages = (int)Math.Ceiling(
-                (double)totalRecords / dto.PageSize);
-
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
             result.Code = ResponseStatusCode.Status200;
 
-            return result.Success(string.Format(Messages.Action.GetSuccess, "recent songs"));
+            return result.Success(
+                string.Format(Messages.Action.GetSuccess, "recent songs"));
         }
 
-        public async Task<BaseTableResponse<SongResponseDto>> GetTrendingSongs(BaseSearchDto<SongRequestDto> dto)
+        public async Task<BaseTableResponse<SongResponseDto>> GetTrendingSongs(BaseSearchDto<SongRequestDto> dto, long userId)
         {
             var result = new BaseTableResponse<SongResponseDto>();
 
@@ -321,6 +327,10 @@ namespace MS_Application.Services
 
             var repoSongAlbum = _distUnitOfWork
                 .GetRepositoryReadOnlyAsync<DistSongAlbums>()
+                .QueryAll();
+
+            var repoUserLike = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistUserLikes>()
                 .QueryAll();
 
             var query = repoSong
@@ -337,7 +347,7 @@ namespace MS_Application.Services
             var totalRecords = query.Count();
 
             var data = query
-               .OrderByDescending(x =>
+                .OrderByDescending(x =>
                     x.Views + (x.Likes * 2))
                 .ThenByDescending(x =>
                     x.CreatedAt)
@@ -364,8 +374,16 @@ namespace MS_Application.Services
                         (MS_Domain.Enums.Type)x.Type),
 
                     Views = x.Views,
-
                     Likes = x.Likes,
+
+                    IsLiked = repoUserLike.Any(l =>
+                        l.UserId == userId
+                        && l.SongId == x.Id
+                        && !l.IsDeleted),
+
+                    YoutubeVideoId = x.YoutubeVideoId,
+                    PlayCount = x.PlayCount,
+                    SourceType = x.SourceType,
 
                     AlbumIds = repoSongAlbum
                         .Where(sa =>
@@ -379,23 +397,18 @@ namespace MS_Application.Services
                     CreatedAt = x.CreatedAt,
                     CreatedBy = x.CreatedBy
                 })
-
                 .ToList();
 
             result.TotalRecords = totalRecords;
-
-            result.TotalPages = (int)Math.Ceiling(
-                (double)totalRecords / dto.PageSize);
-
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
-
             result.Code = ResponseStatusCode.Status200;
 
             return result.Success(
                 string.Format(Messages.Action.GetSuccess, "trending songs"));
         }
 
-        public async Task<BaseTableResponse<SongResponseDto>> GetNewestSongs(BaseSearchDto<SongRequestDto> dto)
+        public async Task<BaseTableResponse<SongResponseDto>> GetNewestSongs(BaseSearchDto<SongRequestDto> dto, long userId)
         {
             var result = new BaseTableResponse<SongResponseDto>();
 
@@ -409,6 +422,10 @@ namespace MS_Application.Services
 
             var repoAlbum = _distUnitOfWork
                 .GetRepositoryReadOnlyAsync<DistAlbums>()
+                .QueryAll();
+
+            var repoUserLike = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistUserLikes>()
                 .QueryAll();
 
             var query = repoSong
@@ -437,11 +454,8 @@ namespace MS_Application.Services
                 .Select(x => new SongResponseDto
                 {
                     Id = x.Id,
-
                     Title = x.Title,
-
                     Duration = x.Duration,
-
                     AlbumId = x.AlbumId,
 
                     AlbumName = repoAlbum
@@ -466,8 +480,16 @@ namespace MS_Application.Services
                         (MS_Domain.Enums.Type)x.Type),
 
                     Views = x.Views,
-
                     Likes = x.Likes,
+
+                    IsLiked = repoUserLike.Any(l =>
+                        l.UserId == userId
+                        && l.SongId == x.Id
+                        && !l.IsDeleted),
+
+                    YoutubeVideoId = x.YoutubeVideoId,
+                    PlayCount = x.PlayCount,
+                    SourceType = x.SourceType,
 
                     AlbumIds = repoSongAlbum
                         .Where(sa =>
@@ -477,25 +499,19 @@ namespace MS_Application.Services
                         .ToList(),
 
                     IsActived = x.IsActived,
-
                     IsDeleted = x.IsDeleted,
-
                     CreatedAt = x.CreatedAt,
-
                     CreatedBy = x.CreatedBy
                 })
                 .ToList();
 
             result.TotalRecords = totalRecords;
-
-            result.TotalPages = (int)Math.Ceiling(
-                (double)totalRecords / dto.PageSize);
-
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
-
             result.Code = ResponseStatusCode.Status200;
 
-            return result.Success(string.Format(Messages.Action.GetSuccess, "newest songs"));
+            return result.Success(
+                string.Format(Messages.Action.GetSuccess, "newest songs"));
         }
 
         public async Task<BaseResponse<SongResponseDto>> GetSongDetail(long id, long userId)
@@ -505,14 +521,29 @@ namespace MS_Application.Services
             var repoSong = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongs>().QueryAll();
             var repoSongLyric = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongLyrics>().QueryAll();
             var repoUserLike = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistUserLikes>().QueryAll();
+            var repoSongAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistSongAlbums>().QueryAll();
 
-            var song = repoSong.FirstOrDefault(x => x.Id == id && !x.IsDeleted);
-            var lyrics = repoSongLyric.FirstOrDefault(x => x.SongId == id && !x.IsDeleted);
-            var isLiked = repoUserLike.Any(x => x.UserId == userId && x.SongId == id);
+            var song = repoSong
+                .FirstOrDefault(x =>
+                    x.Id == id &&
+                    !x.IsDeleted);
+
             if (song == null)
             {
                 return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
             }
+
+            var lyrics = repoSongLyric
+                .FirstOrDefault(x =>
+                    x.SongId == id &&
+                    !x.IsDeleted);
+
+            var isLiked = repoUserLike
+                .Any(x =>
+                    x.UserId == userId &&
+                    x.SongId == id &&
+                    !x.IsDeleted);
+
             var deserializeOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -523,17 +554,45 @@ namespace MS_Application.Services
                 Id = song.Id,
                 Title = song.Title,
                 Duration = song.Duration,
-                FileUrl = _cloudinaryService.BuildAudioUrl(song.FileUrl),
-                ImgUrl = string.IsNullOrWhiteSpace(song.ImgUrl) ? null : _cloudinaryService.BuildImageUrl(song.ImgUrl),
+
+                FileUrl = song.SourceType == 3
+                    ? song.YoutubeVideoId
+                    : _cloudinaryService.BuildAudioUrl(song.FileUrl),
+
+                ImgUrl = string.IsNullOrWhiteSpace(song.ImgUrl)
+                    ? null
+                    : song.ImgUrl.StartsWith("http")
+                        ? song.ImgUrl
+                        : _cloudinaryService.BuildImageUrl(song.ImgUrl),
+
                 ReleaseDate = song.ReleaseDate,
                 AlbumId = song.AlbumId,
-                ArtistName = song.ArtistId.ToString(),
+                ArtistName = song.Artist != null ? song.Artist.Name : "",
                 TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)song.Type),
+
                 IsLiked = isLiked,
+
+                Views = song.Views,
+                Likes = song.Likes,
+                YoutubeVideoId = song.YoutubeVideoId,
+                PlayCount = song.PlayCount,
+                SourceType = song.SourceType,
+
+                AlbumIds = repoSongAlbum
+                    .Where(sa =>
+                        sa.SongId == song.Id &&
+                        !sa.IsDeleted)
+                    .Select(sa => sa.AlbumId)
+                    .ToList(),
+
                 Lyrics = lyrics?.Content,
-                SyncedLyrics = lyrics?.SyncedJson == null
-            ? null
-            : JsonSerializer.Deserialize<List<LyricsLineDto>>(lyrics.SyncedJson.ToString(), deserializeOptions),
+
+                SyncedLyrics = string.IsNullOrWhiteSpace(lyrics?.SyncedJson)
+                    ? null
+                    : JsonSerializer.Deserialize<List<LyricsLineDto>>(
+                        lyrics.SyncedJson,
+                        deserializeOptions),
+
                 IsActived = song.IsActived,
                 IsDeleted = song.IsDeleted,
                 CreatedAt = song.CreatedAt,
@@ -549,62 +608,46 @@ namespace MS_Application.Services
         {
             var result = new BaseResponse<SongResponseDto>();
 
-            var repoSong = _distUnitOfWork
-                .GetRepositoryAsync<DistSongs>();
-
-            var repoSongView = _distUnitOfWork
-                .GetRepositoryAsync<DistSongViews>();
+            var repoSong = _distUnitOfWork.GetRepositoryAsync<DistSongs>();
+            var repoSongView = _distUnitOfWork.GetRepositoryAsync<DistSongViews>();
 
             var song = await repoSong.FindByIdAsync(id);
 
             if (song == null || song.IsDeleted)
             {
-                return result.Fail(
-                    string.Format(Messages.Validation.NotFound, "song"));
+                return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
             }
 
-            var ipAddress = _httpContextAccessor
-                .HttpContext?
-                .Request?
-                .Headers["X-Forwarded-For"]
-                .FirstOrDefault();
+            var ipAddress = _httpContextAccessor.HttpContext?.Request?.Headers["X-Forwarded-For"].FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(ipAddress))
             {
-                ipAddress = _httpContextAccessor
-                    .HttpContext?
-                    .Connection?
-                    .RemoteIpAddress?
-                    .ToString();
+                ipAddress = _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
             }
 
-            if (!string.IsNullOrWhiteSpace(ipAddress)
-                && ipAddress.Contains(','))
+            if (!string.IsNullOrWhiteSpace(ipAddress) && ipAddress.Contains(','))
             {
-                ipAddress = ipAddress
-                    .Split(',')
-                    .First()
-                    .Trim();
+                ipAddress = ipAddress.Split(',').First().Trim();
             }
 
             var limitTime = DateTime.Now.AddSeconds(-30);
 
-            var recentView = repoSongView
-                .QueryAll()
-                .Any(x =>
-                    x.SongId == id &&
-                    (
-                        (userId > 0 && x.UserId == userId)
-                        || x.IpAddress == ipAddress
-                    ) &&
-                    x.ViewedAt >= limitTime &&
-                    !x.IsDeleted);
+            var recentView = repoSongView.QueryAll().Any(x =>
+                x.SongId == id &&
+                (
+                    (userId > 0 && x.UserId == userId)
+                    || x.IpAddress == ipAddress
+                ) &&
+                x.ViewedAt >= limitTime &&
+                !x.IsDeleted);
 
             if (!recentView)
             {
-                song.Views += 1;
+                song.Views = (song.Views ?? 0) + 1;
+
                 await repoSong.UpdateAsync(song);
-                var songView = new DistSongViews
+
+                await repoSongView.AddAsync(new DistSongViews
                 {
                     SongId = id,
                     UserId = userId > 0 ? userId : null,
@@ -613,40 +656,117 @@ namespace MS_Application.Services
                     IsActived = true,
                     IsDeleted = false,
                     CreatedBy = userId > 0 ? userId : null
-                };
-
-                await repoSongView.AddAsync(songView);
+                });
 
                 await _distUnitOfWork.SaveChangesAsync();
             }
 
-            return result.Success(
-                string.Format(Messages.Action.UpdateSuccess, "view"));
+            result.Data = new SongResponseDto
+            {
+                Id = song.Id,
+                Title = song.Title,
+                Duration = song.Duration,
+                FileUrl = song.FileUrl,
+                ImgUrl = song.ImgUrl,
+                ReleaseDate = song.ReleaseDate,
+                AlbumId = song.AlbumId,
+                ArtistName = song.Artist?.Name ?? "",
+                TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)song.Type),
+                Views = song.Views,
+                Likes = song.Likes,
+                YoutubeVideoId = song.YoutubeVideoId,
+                PlayCount = song.PlayCount,
+                SourceType = song.SourceType,
+                IsActived = song.IsActived,
+                IsDeleted = song.IsDeleted,
+                CreatedAt = song.CreatedAt,
+                CreatedBy = song.CreatedBy
+            };
+
+            return result.Success(string.Format(Messages.Action.UpdateSuccess, "view"));
         }
 
-        public async Task<BaseResponse<string>> AddSongHistory(long songId, long userId)
+        public async Task<BaseResponse<SongResponseDto>> AddSongHistory(AddSongHistoryDto dto, long userId)
         {
-            var result = new BaseResponse<string>();
+            var result = new BaseResponse<SongResponseDto>();
 
             var repoSong = _distUnitOfWork
-                .GetRepositoryReadOnlyAsync<DistSongs>()
-                .QueryAll();
+                .GetRepositoryAsync<DistSongs>();
+
+            var repoArtist = _distUnitOfWork
+                .GetRepositoryAsync<DistArtists>();
 
             var repoHistory = _distUnitOfWork
                 .GetRepositoryAsync<DistSongHistories>();
 
-            var song = repoSong.FirstOrDefault(x =>
-                x.Id == songId &&
-                !x.IsDeleted);
+            var artist = await repoArtist
+                .QueryCondition(x =>
+                    x.Name.ToLower() == dto.Channel.Trim().ToLower())
+                .FirstOrDefaultAsync();
+
+            if (artist == null)
+            {
+                artist = new DistArtists
+                {
+                    Name = dto.Channel.Trim(),
+                    StageName = dto.Channel.Trim(),
+                    CreatedBy = userId
+                };
+
+                await repoArtist.AddAsync(artist);
+                await _distUnitOfWork.SaveChangesAsync();
+            }
+
+            var song = repoSong
+                .QueryAll()
+                .FirstOrDefault(x =>
+                    x.YoutubeVideoId == dto.VideoId
+                    && !x.IsDeleted);
 
             if (song == null)
             {
-                return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
+                song = new DistSongs
+                {
+                    Title = dto.Title,
+                    YoutubeVideoId = dto.VideoId,
+                    Duration = dto.Duration,
+
+                    ImgUrl = dto.ThumbnailHigh,
+
+                    ArtistId = artist.Id,
+
+                    Type = 1,
+                    SourceType = 3,
+
+                    PlayCount = 1,
+
+                    Views = 0,
+                    Likes = 0,
+
+                    CreatedBy = userId
+                };
+
+                await repoSong.AddAsync(song);
+                await _distUnitOfWork.SaveChangesAsync();
+            }
+            else
+            {
+                song.Duration = dto.Duration;
+
+                if (!string.IsNullOrWhiteSpace(dto.ThumbnailHigh))
+                {
+                    song.ImgUrl = dto.ThumbnailHigh;
+                }
+
+                song.PlayCount = (song.PlayCount ?? 0) + 1;
+
+                await repoSong.UpdateAsync(song);
+                await _distUnitOfWork.SaveChangesAsync();
             }
 
             var history = new DistSongHistories
             {
-                SongId = songId,
+                SongId = song.Id,
                 UserId = userId,
                 PlayedAt = DateTime.Now,
                 CreatedBy = userId
@@ -655,6 +775,24 @@ namespace MS_Application.Services
             await repoHistory.AddAsync(history);
 
             await _distUnitOfWork.SaveChangesAsync();
+
+            result.Data = new SongResponseDto
+            {
+                Id = song.Id,
+                Title = song.Title,
+                Duration = song.Duration,
+                FileUrl = song.FileUrl,
+                ImgUrl = song.ImgUrl,
+                ReleaseDate = song.ReleaseDate,
+                AlbumId = song.AlbumId,
+                ArtistName = artist.Name,
+                Views = song.Views,
+                Likes = song.Likes,
+                IsLiked = false,
+                YoutubeVideoId = song.YoutubeVideoId,
+                PlayCount = song.PlayCount,
+                SourceType = song.SourceType
+            };
 
             return result.Success(string.Format(Messages.Action.CreateSuccess, "song history"));
         }
@@ -669,18 +807,24 @@ namespace MS_Application.Services
             var song = await repoSong.FindByIdAsync(id);
 
             if (song == null || song.IsDeleted)
+            {
                 return result.Fail(string.Format(Messages.Validation.NotFound, "song"));
+            }
 
             var existed = repoLike
-                .QueryCondition(x => x.UserId == userId && x.SongId == id && !x.IsDeleted)
+                .QueryCondition(x =>
+                    x.UserId == userId &&
+                    x.SongId == id &&
+                    !x.IsDeleted)
                 .FirstOrDefault();
 
             if (existed != null)
             {
                 await repoLike.DeleteAsync(existed);
-                if (song.Likes > 0)
+
+                if ((song.Likes ?? 0) > 0)
                 {
-                    song.Likes--;
+                    song.Likes = (song.Likes ?? 0) - 1;
                 }
             }
             else
@@ -691,11 +835,35 @@ namespace MS_Application.Services
                     SongId = id,
                     CreatedBy = userId
                 });
-                song.Likes += 1;
+
+                song.Likes = (song.Likes ?? 0) + 1;
             }
 
             await repoSong.UpdateAsync(song);
             await _distUnitOfWork.SaveChangesAsync();
+
+            result.Data = new SongResponseDto
+            {
+                Id = song.Id,
+                Title = song.Title,
+                Duration = song.Duration,
+                FileUrl = song.FileUrl,
+                ImgUrl = song.ImgUrl,
+                ReleaseDate = song.ReleaseDate,
+                AlbumId = song.AlbumId,
+                ArtistName = song.Artist?.Name ?? "",
+                TypeSong = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)song.Type),
+                IsLiked = existed == null,
+                Views = song.Views,
+                Likes = song.Likes,
+                YoutubeVideoId = song.YoutubeVideoId,
+                PlayCount = song.PlayCount,
+                SourceType = song.SourceType,
+                IsActived = song.IsActived,
+                IsDeleted = song.IsDeleted,
+                CreatedAt = song.CreatedAt,
+                CreatedBy = song.CreatedBy
+            };
 
             return result.Success(string.Format(Messages.Action.UpdateSuccess, "like"));
         }

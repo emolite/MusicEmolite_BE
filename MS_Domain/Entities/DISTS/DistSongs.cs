@@ -20,7 +20,7 @@ namespace MS_Domain.Entities.DISTS
         [Column("album_id")]
         public long AlbumId { get; set; }
         [Column("file_url")]
-        public string FileUrl { get; set; }
+        public string? FileUrl { get; set; }
         [Column("img_url")]
         public string? ImgUrl { get; set; }
         [Column("artist_id")]
@@ -31,7 +31,13 @@ namespace MS_Domain.Entities.DISTS
         public long? Likes { get; set; } = 0;
         [Column("type")]
         public short Type { get; set; }
-        public DistAlbums Album { get; set; }
+        [Column("youtube_video_id")]
+        public string? YoutubeVideoId { get; set; }
+
+        [Column("play_count")]
+        public long? PlayCount { get; set; }
+        [Column("source_type")]
+        public short SourceType { get; set; }
         public DistArtists Artist { get; set; }
     }
 }

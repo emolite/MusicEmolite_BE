@@ -5,6 +5,7 @@ using MS_Application.DataTransferObjects.Base;
 using MS_Application.Helpers;
 using MS_Application.Repositories.Interfaces;
 using MS_Application.Services.Interfaces;
+using MS_Application.Services.Interfaces.External;
 using MS_Domain.Entities.DISTS;
 using MS_Domain.Enums;
 
@@ -13,10 +14,12 @@ namespace MS_Application.Services
     public class AlbumsService : IAlbumsService
     {
         private readonly IDistUnitOfWork _distUnitOfWork;
+        private readonly ICloudinaryService _cloudinaryService;
 
-        public AlbumsService(IDistUnitOfWork distUnitOfWork)
+        public AlbumsService(IDistUnitOfWork distUnitOfWork, ICloudinaryService cloudinaryService)
         {
             _distUnitOfWork = distUnitOfWork;
+            _cloudinaryService = cloudinaryService;
         }
 
         public async Task<BaseTableResponse<AlbumResponseDto>> GetAlbums(BaseSearchDto<AlbumRequestDto> dto, long userId)
@@ -46,6 +49,7 @@ namespace MS_Application.Services
                     ReleaseDate = x.ReleaseDate,
                     ArtistId = x.ArtistId,
                     AlbumTypeName = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.AlbumType),
+                    Uri = string.IsNullOrEmpty(x.Uri) ? null : _cloudinaryService.BuildImageUrl(x.Uri),
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,
@@ -119,6 +123,7 @@ namespace MS_Application.Services
                     ArtistId = x.ArtistId,
                     AlbumTypeName = EnumHelper.GetDisplayName(
                         (MS_Domain.Enums.Type)x.AlbumType),
+                    Uri = string.IsNullOrEmpty(x.Uri) ? null : _cloudinaryService.BuildImageUrl(x.Uri),
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt,
@@ -146,13 +151,15 @@ namespace MS_Application.Services
             var result = new BaseResponse<AlbumResponseDto>();
 
             var repoAlbum = _distUnitOfWork.GetRepositoryAsync<DistAlbums>();
+            var uploadResult = await _cloudinaryService.UploadMusicImageAsync(dto.Image);
 
             var entity = new DistAlbums
             {
                 Title = dto.Title,
                 ReleaseDate = dto.ReleaseDate,
-                ArtistId = dto.ArtistId,
+                ArtistId = 1,
                 AlbumType = dto.AlbumType,
+                Uri = uploadResult.Data,
                 CreatedBy = userId
             };
 

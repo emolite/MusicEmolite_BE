@@ -11,5 +11,7 @@ namespace MS_Application.DataTransferObjects.Albums
         public long? ArtistId { get; set; }
 
         public string AlbumTypeName { get; set; }
+
+        public string? Uri { get; set; }
     }
 }

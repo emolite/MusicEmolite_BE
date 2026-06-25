@@ -33,7 +33,7 @@ namespace MS_API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateAlbum([FromBody] AlbumCreateDto dto)
+        public async Task<IActionResult> CreateAlbum([FromForm] AlbumCreateDto dto)
         {
             var result = await _albumsService.CreateAlbum(dto, UserId);
             return Ok(result);

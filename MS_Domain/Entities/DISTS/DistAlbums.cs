@@ -20,6 +20,9 @@ namespace MS_Domain.Entities.DISTS
         [Column("album_type")]
         public byte AlbumType { get; set; }
 
+        [Column("uri")]
+        public string? Uri { get; set; }
+
         public DistArtists Artist { get; set; }
     }
 }

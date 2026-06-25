@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,5 +16,7 @@ namespace MS_Application.DataTransferObjects.Albums
         public long? ArtistId { get; set; }
 
         public byte AlbumType { get; set; }
+
+        public IFormFile Image { get; set; }
     }
 }

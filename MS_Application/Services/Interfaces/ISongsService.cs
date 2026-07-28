@@ -11,6 +11,8 @@ namespace MS_Application.Services.Interfaces
         Task<BaseTableResponse<SongResponseDto>> GetRecentSongs(BaseSearchDto<SongRequestDto> dto, long userId);
         Task<BaseTableResponse<SongResponseDto>> GetTrendingSongs(BaseSearchDto<SongRequestDto> dto, long userId);
         Task<BaseTableResponse<SongResponseDto>> GetNewestSongs(BaseSearchDto<SongRequestDto> dto, long userId);
+        Task<BaseTableResponse<SongResponseDto>> GetMostPlayedSongs(long userId, int top = 20);
+        Task<BaseResponse<MixPlaylistResponseDto>> GetMostPlayedMix(long userId, int top = 20);
         Task<BaseResponse<SongResponseDto>> GetSongDetail(long id, long userId);
         Task<BaseResponse<SongResponseDto>> IncrementView(long id, long userId);
         Task<BaseResponse<SongResponseDto>> AddSongHistory(AddSongHistoryDto dto, long userId);

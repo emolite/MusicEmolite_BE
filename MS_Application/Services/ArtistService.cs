@@ -59,6 +59,37 @@ namespace MS_Application.Services
             return result.Success(string.Format(Messages.Action.GetSuccess, "artists"));
         }
 
+        public async Task<BaseResponse<ArtistResponseDto>> GetArtistById(long id)
+        {
+            var result = new BaseResponse<ArtistResponseDto>();
+
+            var repo = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistArtists>()
+                .QueryAll();
+
+            var artist = repo.FirstOrDefault(x => x.Id == id && !x.IsDeleted);
+
+            if (artist == null)
+            {
+                return result.Fail(string.Format(Messages.Validation.NotFound, "artist"));
+            }
+
+            result.Data = new ArtistResponseDto
+            {
+                Id = artist.Id,
+                Name = artist.Name,
+                StageName = artist.StageName,
+                Country = artist.Country,
+                IsActived = artist.IsActived,
+                IsDeleted = artist.IsDeleted,
+                CreatedAt = artist.CreatedAt
+            };
+
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(string.Format(Messages.Action.GetSuccess, "artist"));
+        }
+
         public async Task<BaseResponse<ArtistResponseDto>> CreateArtist(ArtistCreateDto dto, long userId)
         {
             var result = new BaseResponse<ArtistResponseDto>();

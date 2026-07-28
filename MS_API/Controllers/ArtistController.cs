@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MS_Application.DataTransferObjects.Artist;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.Services.Interfaces;
@@ -16,10 +17,19 @@ namespace MS_API.Controllers
             _artistsService = artistsService;
         }
 
+        [AllowAnonymous]
         [HttpPost("search")]
         public async Task<IActionResult> GetArtists([FromBody] BaseSearchDto<ArtistRequestDto> dto)
         {
             var result = await _artistsService.GetArtists(dto);
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetArtistById(long id)
+        {
+            var result = await _artistsService.GetArtistById(id);
             return Ok(result);
         }
 

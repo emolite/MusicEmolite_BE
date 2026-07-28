@@ -12,6 +12,8 @@ namespace MS_Application.Services.Interfaces
     {
         Task<BaseTableResponse<ArtistResponseDto>> GetArtists(BaseSearchDto<ArtistRequestDto> dto);
 
+        Task<BaseResponse<ArtistResponseDto>> GetArtistById(long id);
+
         Task<BaseResponse<ArtistResponseDto>> CreateArtist(ArtistCreateDto dto, long userId);
 
         Task<BaseResponse<ArtistResponseDto>> UpdateArtist(long id, ArtistUpdateDto dto, long userId);

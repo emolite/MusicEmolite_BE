@@ -120,6 +120,13 @@ namespace MS_Application.Services
                         && !sa.IsDeleted));
             }
 
+            if (dto.SearchParams.ArtistId.HasValue)
+            {
+                // Bài hát không gán ArtistId sẽ tự động bị loại vì so sánh != artistId
+                query = query.Where(x =>
+                    x.ArtistId == dto.SearchParams.ArtistId.Value);
+            }
+
             if (dto.SearchParams.Type.HasValue)
             {
                 query = query.Where(x =>
@@ -512,6 +519,162 @@ namespace MS_Application.Services
 
             return result.Success(
                 string.Format(Messages.Action.GetSuccess, "newest songs"));
+        }
+
+        public async Task<BaseTableResponse<SongResponseDto>> GetMostPlayedSongs(long userId, int top = 20)
+        {
+            var result = new BaseTableResponse<SongResponseDto>();
+
+            var data = GetMostPlayedSongsData(userId, top);
+
+            result.TotalRecords = data.Count;
+            result.TotalPages = 1;
+            result.Data = data;
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(
+                string.Format(Messages.Action.GetSuccess, "most played songs"));
+        }
+
+        // Gói danh sách "bài hay nghe" thành 1 playlist ảo (kiểu Mix của Youtube/Spotify):
+        // có title + cover ghép từ ảnh các bài hát, để FE (web lẫn mobile) chỉ cần render
+        // 1 card duy nhất thay vì tự lắp ráp từ danh sách bài hát rời rạc.
+        public async Task<BaseResponse<MixPlaylistResponseDto>> GetMostPlayedMix(long userId, int top = 20)
+        {
+            var result = new BaseResponse<MixPlaylistResponseDto>();
+
+            var songs = GetMostPlayedSongsData(userId, top);
+
+            var coverImages = songs
+                .Where(s => !string.IsNullOrWhiteSpace(s.ImgUrl))
+                .Select(s => s.ImgUrl!)
+                .Distinct()
+                .Take(4)
+                .ToList();
+
+            result.Data = new MixPlaylistResponseDto
+            {
+                Key = "most-played",
+                Title = "Danh sách kết hợp - Bài hay của tôi",
+                Description = "Tổng hợp những bài hát bạn nghe nhiều nhất",
+                CoverImages = coverImages,
+                TotalSongs = songs.Count,
+                Songs = songs
+            };
+
+            result.TotalRecords = songs.Count;
+            result.TotalPages = 1;
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(
+                string.Format(Messages.Action.GetSuccess, "most played mix"));
+        }
+
+        private List<SongResponseDto> GetMostPlayedSongsData(long userId, int top)
+        {
+            top = Math.Min(top, 20);
+
+            var repoSong = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistSongs>()
+                .QueryAll();
+
+            var repoSongHistory = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistSongHistories>()
+                .QueryAll();
+
+            var repoSongAlbum = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistSongAlbums>()
+                .QueryAll();
+
+            var repoUserLike = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistUserLikes>()
+                .QueryAll();
+
+            // Đếm số lần user này nghe từng bài, lấy top N bài nghe nhiều nhất
+            var mostPlayedSongIds = repoSongHistory
+                .Where(x => !x.IsDeleted && x.UserId == userId)
+                .GroupBy(x => x.SongId)
+                .Select(g => new
+                {
+                    SongId = g.Key,
+                    PlayCount = g.Count()
+                })
+                .OrderByDescending(x => x.PlayCount)
+                .Take(top)
+                .ToList();
+
+            var songIds = mostPlayedSongIds
+                .Select(x => x.SongId)
+                .ToList();
+
+            var songs = repoSong
+                .Where(x => !x.IsDeleted && songIds.Contains(x.Id))
+                .ToList();
+
+            // Lấy 1 lần cho cả top N bài thay vì query lại DB cho từng bài trong vòng Join bên dưới
+            // (trước đây gây N+1 query, mỗi request most-played mất tới hàng chục round-trip DB)
+            var likedSongIds = repoUserLike
+                .Where(l =>
+                    l.UserId == userId
+                    && songIds.Contains(l.SongId)
+                    && !l.IsDeleted)
+                .Select(l => l.SongId)
+                .ToHashSet();
+
+            var albumIdsBySong = repoSongAlbum
+                .Where(sa =>
+                    songIds.Contains(sa.SongId)
+                    && !sa.IsDeleted)
+                .Select(sa => new { sa.SongId, sa.AlbumId })
+                .ToList()
+                .GroupBy(sa => sa.SongId)
+                .ToDictionary(g => g.Key, g => g.Select(sa => sa.AlbumId).ToList());
+
+            // Giữ đúng thứ tự "nghe nhiều nhất -> ít nhất" vì query DB không đảm bảo giữ order
+            return mostPlayedSongIds
+                .Join(songs,
+                    m => m.SongId,
+                    s => s.Id,
+                    (m, s) => new SongResponseDto
+                    {
+                        Id = s.Id,
+                        Title = s.Title,
+                        Duration = s.Duration,
+                        AlbumId = s.AlbumId,
+                        ReleaseDate = s.ReleaseDate,
+
+                        FileUrl = _cloudinaryService.BuildAudioUrl(s.FileUrl),
+
+                        ImgUrl = string.IsNullOrWhiteSpace(s.ImgUrl)
+                            ? null
+                            : s.ImgUrl.StartsWith("http")
+                                ? s.ImgUrl
+                                : _cloudinaryService.BuildImageUrl(s.ImgUrl),
+
+                        ArtistName = s.Artist?.Name ?? "",
+
+                        TypeSong = EnumHelper.GetDisplayName(
+                            (MS_Domain.Enums.Type)s.Type),
+
+                        Views = s.Views,
+                        Likes = s.Likes,
+
+                        IsLiked = likedSongIds.Contains(s.Id),
+
+                        YoutubeVideoId = s.YoutubeVideoId,
+                        PlayCount = m.PlayCount, // số lần user này nghe bài này, không phải PlayCount tổng
+                        SourceType = s.SourceType,
+
+                        AlbumIds = albumIdsBySong.TryGetValue(s.Id, out var albumIds)
+                            ? albumIds
+                            : new List<long>(),
+
+                        IsActived = s.IsActived,
+                        IsDeleted = s.IsDeleted,
+                        CreatedAt = s.CreatedAt,
+                        CreatedBy = s.CreatedBy
+                    })
+                .ToList();
         }
 
         public async Task<BaseResponse<SongResponseDto>> GetSongDetail(long id, long userId)

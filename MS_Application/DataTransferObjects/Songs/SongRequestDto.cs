@@ -10,6 +10,7 @@ namespace MS_Application.DataTransferObjects.Songs
     {
         public string? Keyword { get; set; }
         public long? AlbumId { get; set; }
+        public long? ArtistId { get; set; }
         public int? Type { get; set; }
 
         public bool? IsActived { get; set; }

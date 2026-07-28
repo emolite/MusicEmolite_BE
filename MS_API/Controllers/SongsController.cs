@@ -69,6 +69,21 @@ namespace MS_API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("most-played")]
+        public async Task<IActionResult> GetMostPlayedSongs([FromQuery] int top = 20)
+        {
+            var result = await _songsService.GetMostPlayedSongs(UserId, top);
+            return Ok(result);
+        }
+
+        // Danh sách "kết hợp" kiểu Mix (Youtube/Spotify) cho bài hay nghe, dùng chung cho web & mobile
+        [HttpGet("mixes/most-played")]
+        public async Task<IActionResult> GetMostPlayedMix([FromQuery] int top = 20)
+        {
+            var result = await _songsService.GetMostPlayedMix(UserId, top);
+            return Ok(result);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDetail(long id)
         {

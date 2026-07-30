@@ -9,6 +9,7 @@ namespace MS_Application.DataTransferObjects.Auth
     public class LoginResponseDto
     {
         public string AccessToken { get; set; }
+        public string RefreshToken { get; set; }
         public string RefCode { get; set; }
         public string RoleCode { get; set; }
         public string Username { get; set; }

@@ -93,4 +93,15 @@ public static class Messages
         public const string Error500 = "Lỗi Hệ Thống";
         public const string UnknowMessage = "Có lỗi xảy ra , vui lòng thử lại";
     }
+
+    public static class Otp
+    {
+        public const string SendSuccess = "Mã OTP đã được gửi tới email của bạn";
+        public const string VerifySuccess = "Xác thực mã OTP thành công";
+        public const string InvalidCode = "Mã OTP không đúng";
+        public const string Expired = "Mã OTP đã hết hạn";
+        public const string NotFound = "Không tìm thấy mã OTP, vui lòng gửi lại yêu cầu mới";
+        public const string TooManyAttempts = "Bạn đã nhập sai quá số lần cho phép, vui lòng gửi lại mã mới";
+        public const string InvalidPurpose = "Mục đích gửi OTP không hợp lệ";
+    }
 }

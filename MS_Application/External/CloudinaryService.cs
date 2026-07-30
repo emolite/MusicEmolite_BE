@@ -152,5 +152,34 @@ namespace MS_Application.External
 
             return response.Success(string.Format(Messages.Action.CreateSuccess, "image"));
         }
+
+        public async Task<BaseResponse<string>> UploadChatImageAsync(IFormFile file)
+        {
+            var response = new BaseResponse<string>();
+
+            await using var stream = file.OpenReadStream();
+
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(file.FileName, stream),
+                Folder = "MUSIC_PROJECT/IMAGES/CHATS"
+            };
+
+            var result = await _imageCloudinary.UploadAsync(uploadParams);
+
+            if (result.Error != null)
+            {
+                throw new Exception(result.Error.Message);
+            }
+
+            if (result.SecureUrl == null)
+            {
+                throw new Exception("Upload failed. SecureUrl is null.");
+            }
+
+            response.Data = result.PublicId;
+
+            return response.Success(string.Format(Messages.Action.CreateSuccess, "image"));
+        }
     }
 }

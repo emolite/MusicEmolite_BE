@@ -20,14 +20,16 @@ namespace MS_Application.Services
         private readonly ICloudinaryService _cloudinaryService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IGoogleService _googleService;
+        private readonly IOtpService _otpService;
 
-        public AuthService(ICrmUnitOfWork crmUnitOfWork, JwtHelper jwtHelper, ICloudinaryService cloudinaryService, IHttpContextAccessor httpContextAccessor, IGoogleService googleService)
+        public AuthService(ICrmUnitOfWork crmUnitOfWork, JwtHelper jwtHelper, ICloudinaryService cloudinaryService, IHttpContextAccessor httpContextAccessor, IGoogleService googleService, IOtpService otpService)
         {
             _crmUnitOfWork = crmUnitOfWork;
             _jwtHelper=jwtHelper;
             _cloudinaryService=cloudinaryService;
             _googleService=googleService;
             _httpContextAccessor=httpContextAccessor;
+            _otpService=otpService;
         }
 
         public async Task<BaseResponse<LoginResponseDto>> LoginAsync(LoginRequestDto dto)
@@ -37,13 +39,6 @@ namespace MS_Application.Services
             var repoUser = _crmUnitOfWork
                 .GetRepositoryReadOnlyAsync<CrmUser>()
                 .QueryAll();
-
-            var repoSessionRead = _crmUnitOfWork
-                .GetRepositoryReadOnlyAsync<CrmUserSession>()
-                .QueryAll();
-
-            var repoSessionWrite = _crmUnitOfWork
-                .GetRepositoryAsync<CrmUserSession>();
 
             var user = repoUser.FirstOrDefault(u =>
                 u.Username == dto.UserName);
@@ -65,6 +60,47 @@ namespace MS_Application.Services
                 return result.Fail("Sai tài khoản hoặc mật khẩu");
             }
 
+            var refreshToken = await IssueSessionAsync(user.Id);
+
+            var token = _jwtHelper.GenerateToken(
+                user.Id,
+                user.RefCode,
+                user.Username,
+                user.RoleCode,
+                user.Email,
+                user.UserType,
+                expireMinutes: 120);
+
+            var data = new LoginResponseDto
+            {
+                AccessToken = token,
+                RefreshToken = refreshToken,
+                RefCode = user.RefCode,
+                RoleCode = user.RoleCode,
+                Username = user.Username,
+                Email = user.Email
+            };
+
+            result.Data = data;
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(Messages.Login.LoginSuccess);
+        }
+
+        /// <summary>
+        /// Creates or renews the session tied to this device (matched by IP + user agent),
+        /// issuing a fresh 30-day refresh token each time so an actively used session never
+        /// expires until the user explicitly logs out.
+        /// </summary>
+        private async Task<string> IssueSessionAsync(long userId)
+        {
+            var repoSessionRead = _crmUnitOfWork
+                .GetRepositoryReadOnlyAsync<CrmUserSession>()
+                .QueryAll();
+
+            var repoSessionWrite = _crmUnitOfWork
+                .GetRepositoryAsync<CrmUserSession>();
+
             var httpContext = _httpContextAccessor.HttpContext;
 
             var ipAddress =
@@ -82,29 +118,25 @@ namespace MS_Application.Services
             var userAgent =
                 httpContext?.Request.Headers["User-Agent"].ToString();
 
-            var deviceName = userAgent;
-
             var refreshToken = Guid.NewGuid().ToString();
-
             var now = DateTime.Now;
 
             var existingSession =
                 repoSessionRead.FirstOrDefault(x =>
-                    x.UserId == user.Id &&
+                    x.UserId == userId &&
                     x.IpAddress == ipAddress &&
                     x.UserAgent == userAgent &&
-                    x.ExpiredAt > now &&
                     !x.IsDeleted);
 
             if (existingSession == null)
             {
                 var newSession = new CrmUserSession
                 {
-                    UserId = user.Id,
+                    UserId = userId,
                     RefreshToken = refreshToken,
                     IpAddress = ipAddress,
                     UserAgent = userAgent,
-                    DeviceName = deviceName,
+                    DeviceName = userAgent,
                     IsVerified = false,
                     LastAccessAt = now,
                     ExpiredAt = now.AddDays(30),
@@ -112,44 +144,25 @@ namespace MS_Application.Services
                     IsActived = true,
                     IsDeleted = false,
                     CreatedAt = now,
-                    CreatedBy = user.Id
+                    CreatedBy = userId
                 };
 
                 await repoSessionWrite.AddAsync(newSession);
             }
             else
             {
+                existingSession.RefreshToken = refreshToken;
                 existingSession.LastAccessAt = now;
+                existingSession.ExpiredAt = now.AddDays(30);
                 existingSession.UpdatedAt = now;
-                existingSession.UpdatedBy = user.Id;
+                existingSession.UpdatedBy = userId;
 
                 await repoSessionWrite.UpdateAsync(existingSession);
             }
 
             await _crmUnitOfWork.SaveChangesAsync();
 
-            var token = _jwtHelper.GenerateToken(
-                user.Id,
-                user.RefCode,
-                user.Username,
-                user.RoleCode,
-                user.Email,
-                user.UserType,
-                expireMinutes: 120);
-
-            var data = new LoginResponseDto
-            {
-                AccessToken = token,
-                RefCode = user.RefCode,
-                RoleCode = user.RoleCode,
-                Username = user.Username,
-                Email = user.Email
-            };
-
-            result.Data = data;
-            result.Code = ResponseStatusCode.Status200;
-
-            return result.Success(Messages.Login.LoginSuccess);
+            return refreshToken;
         }
 
         public async Task<BaseResponse<RegisterResponseDto>> RegisterAsync(RegisterRequestDto dto)
@@ -375,6 +388,8 @@ namespace MS_Application.Services
                 await _crmUnitOfWork.SaveChangesAsync();
             }
 
+            var refreshToken = await IssueSessionAsync(user.Id);
+
             var token = _jwtHelper.GenerateToken(
                 user.Id,
                 user.RefCode,
@@ -387,6 +402,7 @@ namespace MS_Application.Services
             result.Data = new LoginResponseDto
             {
                 AccessToken = token,
+                RefreshToken = refreshToken,
                 RefCode = user.RefCode,
                 RoleCode = user.RoleCode,
                 Username = user.Username,
@@ -447,6 +463,145 @@ namespace MS_Application.Services
             result.Data = true;
             result.Code = ResponseStatusCode.Status200;
             return result.Success("Hoàn tất hồ sơ thành công");
+        }
+
+        public async Task<BaseResponse<bool>> ResetPasswordAsync(ResetPasswordRequestDto dto)
+        {
+            var result = new BaseResponse<bool>();
+
+            if (string.IsNullOrWhiteSpace(dto.NewPassword) || dto.NewPassword.Length < 6)
+            {
+                result.Code = ResponseStatusCode.Status400;
+                return result.Fail(false, string.Format(Messages.Validation.MinLength, "Mật khẩu", 6));
+            }
+
+            var verifyResult = await _otpService.VerifyOtpAsync(new VerifyOtpRequestDto
+            {
+                Email = dto.Email,
+                Code = dto.Code,
+                Purpose = OtpPurpose.ResetPassword
+            });
+
+            if (verifyResult.Code != ResponseStatusCode.Status200)
+            {
+                result.Code = verifyResult.Code;
+                return result.Fail(false, verifyResult.Message ?? Messages.System.UnknowMessage);
+            }
+
+            var repoUserRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUser>().QueryAll();
+            var repoUserWrite = _crmUnitOfWork.GetRepositoryAsync<CrmUser>();
+
+            var email = dto.Email.Trim().ToLower();
+            var user = repoUserRead.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email);
+
+            if (user == null)
+            {
+                result.Code = ResponseStatusCode.Status404;
+                return result.Fail(false, Messages.PasswordReset.NotFoundAccount);
+            }
+
+            HashHelper.CreatePasswordHash(dto.NewPassword, out string passwordHash, out string passwordSalt);
+
+            user.PasswordHash = passwordHash;
+            user.PasswordSalt = passwordSalt;
+            user.UpdatedAt = DateTime.Now;
+
+            await repoUserWrite.UpdateAsync(user);
+            await _crmUnitOfWork.SaveChangesAsync();
+
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(true, Messages.PasswordReset.Success);
+        }
+
+        public async Task<BaseResponse<RefreshTokenResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto dto)
+        {
+            var result = new BaseResponse<RefreshTokenResponseDto>();
+
+            if (string.IsNullOrWhiteSpace(dto.RefreshToken))
+            {
+                result.Code = ResponseStatusCode.Status401;
+                return result.Fail("Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại");
+            }
+
+            var now = DateTime.Now;
+
+            var repoSessionRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUserSession>().QueryAll();
+            var repoSessionWrite = _crmUnitOfWork.GetRepositoryAsync<CrmUserSession>();
+            var repoUserRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUser>().QueryAll();
+
+            var session = repoSessionRead.FirstOrDefault(x =>
+                x.RefreshToken == dto.RefreshToken &&
+                !x.IsDeleted &&
+                x.ExpiredAt > now);
+
+            if (session == null)
+            {
+                result.Code = ResponseStatusCode.Status401;
+                return result.Fail("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại");
+            }
+
+            var user = repoUserRead.FirstOrDefault(u => u.Id == session.UserId);
+
+            if (user == null)
+            {
+                result.Code = ResponseStatusCode.Status404;
+                return result.Fail(Messages.PasswordReset.NotFoundAccount);
+            }
+
+            var newRefreshToken = Guid.NewGuid().ToString();
+
+            session.RefreshToken = newRefreshToken;
+            session.LastAccessAt = now;
+            session.ExpiredAt = now.AddDays(30);
+            session.UpdatedAt = now;
+            session.UpdatedBy = user.Id;
+
+            await repoSessionWrite.UpdateAsync(session);
+            await _crmUnitOfWork.SaveChangesAsync();
+
+            var accessToken = _jwtHelper.GenerateToken(
+                user.Id,
+                user.RefCode,
+                user.Username,
+                user.RoleCode,
+                user.Email,
+                user.UserType,
+                expireMinutes: 120);
+
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(new RefreshTokenResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = newRefreshToken
+            }, "Làm mới phiên đăng nhập thành công");
+        }
+
+        public async Task<BaseResponse<bool>> LogoutAsync(LogoutRequestDto dto)
+        {
+            var result = new BaseResponse<bool>();
+
+            if (!string.IsNullOrWhiteSpace(dto.RefreshToken))
+            {
+                var repoSessionRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUserSession>().QueryAll();
+                var repoSessionWrite = _crmUnitOfWork.GetRepositoryAsync<CrmUserSession>();
+
+                var session = repoSessionRead.FirstOrDefault(x =>
+                    x.RefreshToken == dto.RefreshToken &&
+                    !x.IsDeleted);
+
+                if (session != null)
+                {
+                    session.IsDeleted = true;
+                    session.UpdatedAt = DateTime.Now;
+
+                    await repoSessionWrite.UpdateAsync(session);
+                    await _crmUnitOfWork.SaveChangesAsync();
+                }
+            }
+
+            result.Data = true;
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(true, Messages.Logout.LogoutSuccess);
         }
     }
 }

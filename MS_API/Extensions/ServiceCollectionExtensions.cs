@@ -1,15 +1,19 @@
 ﻿using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using MS_API.Realtime;
 using MS_Application.DataTransferObjects.Cloudinary;
+using MS_Application.DataTransferObjects.Email;
 using MS_Application.DataTransferObjects.Lyrics;
 using MS_Application.External;
 using MS_Application.Helpers;
 using MS_Application.Services;
 using MS_Application.Services.Interfaces;
+using MS_Application.Services.Interfaces.External;
 using MS_Infrastructure.DataAccess;
 using MS_Infrastructure.DataAccess.DISTS.Contexts;
 using System.Text;
@@ -88,6 +92,24 @@ namespace MS_API.Extensions
                         IssuerSigningKey = new SymmetricSecurityKey(key)
                     };
 
+                    // SignalR's WebSocket/SSE transports can't set an Authorization
+                    // header, so the JS client sends the token as a query string
+                    // instead - pull it from there for hub requests only.
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+
+                            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                            {
+                                context.Token = accessToken;
+                            }
+
+                            return Task.CompletedTask;
+                        }
+                    };
                 });
 
             services.AddAuthorization();
@@ -97,7 +119,27 @@ namespace MS_API.Extensions
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IOtpService, OtpService>();
             services.AddScoped<JwtHelper>();
+            return services;
+        }
+
+        public static IServiceCollection AddRealtimeConfiguration(this IServiceCollection services)
+        {
+            services.AddSignalR();
+            services.AddSingleton<IUserIdProvider, ChatHubUserIdProvider>();
+            services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
+
+            return services;
+        }
+
+        public static IServiceCollection AddEmailConfiguration(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<EmailSettingsDto>(
+                configuration.GetSection("EmailSettings"));
+
+            services.AddScoped<IEmailService, EmailService>();
+
             return services;
         }
 

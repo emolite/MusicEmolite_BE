@@ -78,6 +78,27 @@ namespace MS_API.Controllers
             return Ok(response);
         }
 
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        public async Task<BaseResponse<bool>> ResetPassword([FromBody] ResetPasswordRequestDto dto)
+        {
+            return await _authService.ResetPasswordAsync(dto);
+        }
+
+        [AllowAnonymous]
+        [HttpPost("refresh-token")]
+        public async Task<BaseResponse<RefreshTokenResponseDto>> RefreshToken([FromBody] RefreshTokenRequestDto dto)
+        {
+            return await _authService.RefreshTokenAsync(dto);
+        }
+
+        [AllowAnonymous]
+        [HttpPost("logout")]
+        public async Task<BaseResponse<bool>> Logout([FromBody] LogoutRequestDto dto)
+        {
+            return await _authService.LogoutAsync(dto);
+        }
+
         [HttpGet("current-user")]
         public async Task<BaseResponse<UserVerifyDto>> VerifyToken()
         {

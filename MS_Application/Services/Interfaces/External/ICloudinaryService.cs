@@ -16,5 +16,6 @@ namespace MS_Application.Services.Interfaces.External
         Task<BaseResponse<string>> UploadAudioAsync(IFormFile file);
         Task<BaseResponse<string>> UploadProfileImageAsync(IFormFile file);
         Task<BaseResponse<string>> UploadMusicImageAsync(IFormFile file);
+        Task<BaseResponse<string>> UploadChatImageAsync(IFormFile file);
     }
 }

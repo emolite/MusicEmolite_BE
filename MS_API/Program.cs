@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using MS_API.Extensions;
+using MS_API.Realtime;
 using MS_Infrastructure.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +36,8 @@ builder.Services
     .AddJwtAuthentication(builder.Configuration)
     .AddCloudinaryConfiguration(builder.Configuration)
     .AddLyricsApiConfiguration(builder.Configuration)
+    .AddEmailConfiguration(builder.Configuration)
+    .AddRealtimeConfiguration()
     .AddApplicationServices()
     .AddHttpContextAccessor();
 
@@ -49,5 +52,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

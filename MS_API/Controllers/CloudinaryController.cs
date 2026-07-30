@@ -67,5 +67,18 @@ namespace MS_API.Controllers
 
             return Ok(result);
         }
+
+        [HttpPost("upload-chat-image")]
+        public async Task<IActionResult> UploadChatImage(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("File is required");
+            }
+
+            var result = await _cloudinaryService.UploadChatImageAsync(file);
+
+            return Ok(result);
+        }
     }
 }

@@ -22,5 +22,8 @@ namespace MS_Application.Services.Interfaces
         Task<BaseResponse<UserVerifyDto>> VerifyTokenAsync(string token);
         Task<BaseResponse<LoginResponseDto>> LoginWithGoogleAsync(GoogleLoginRequestDto dto);
         Task<BaseResponse<bool>> CompleteProfileAsync(CompleteProfileRequestDto dto);
+        Task<BaseResponse<bool>> ResetPasswordAsync(ResetPasswordRequestDto dto);
+        Task<BaseResponse<RefreshTokenResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto dto);
+        Task<BaseResponse<bool>> LogoutAsync(LogoutRequestDto dto);
     }
 }

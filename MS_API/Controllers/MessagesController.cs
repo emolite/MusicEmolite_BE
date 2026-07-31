@@ -43,6 +43,12 @@ namespace MS_API.Controllers
             return await _messageService.MarkAsReadAsync(UserId, otherUserId);
         }
 
+        [HttpDelete("{id}")]
+        public async Task<BaseResponse<bool>> Delete(long id)
+        {
+            return await _messageService.DeleteMessageAsync(UserId, id);
+        }
+
         [HttpPost("upload-image")]
         public async Task<IActionResult> UploadImage(IFormFile file)
         {

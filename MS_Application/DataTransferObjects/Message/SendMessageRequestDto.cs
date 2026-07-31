@@ -5,5 +5,7 @@ namespace MS_Application.DataTransferObjects.Message
         public long ReceiverId { get; set; }
         public string? Content { get; set; }
         public string? ImagePublicId { get; set; }
+        public long? ReplyToMessageId { get; set; }
+        public long? ForwardFromMessageId { get; set; }
     }
 }

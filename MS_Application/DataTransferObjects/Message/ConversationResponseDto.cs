@@ -8,6 +8,7 @@ namespace MS_Application.DataTransferObjects.Message
         public string? AvatarUrl { get; set; }
         public string? LastMessage { get; set; }
         public bool LastMessageHasImage { get; set; }
+        public bool IsLastMessageDeleted { get; set; }
         public bool IsLastMessageMine { get; set; }
         public DateTime? LastMessageAt { get; set; }
         public int UnreadCount { get; set; }

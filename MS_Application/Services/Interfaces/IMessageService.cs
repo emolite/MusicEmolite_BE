@@ -9,5 +9,6 @@ namespace MS_Application.Services.Interfaces
         Task<BaseResponse<List<MessageResponseDto>>> GetConversationAsync(long userId, long otherUserId, int page, int pageSize);
         Task<BaseResponse<List<ConversationResponseDto>>> GetConversationsAsync(long userId);
         Task<BaseResponse<bool>> MarkAsReadAsync(long userId, long otherUserId);
+        Task<BaseResponse<bool>> DeleteMessageAsync(long userId, long messageId);
     }
 }

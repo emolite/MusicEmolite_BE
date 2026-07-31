@@ -23,5 +23,11 @@ namespace MS_Domain.Entities.CRMS
 
         [Column("read_at")]
         public DateTime? ReadAt { get; set; }
+
+        [Column("reply_to_message_id")]
+        public long? ReplyToMessageId { get; set; }
+
+        [Column("forwarded_from_message_id")]
+        public long? ForwardedFromMessageId { get; set; }
     }
 }

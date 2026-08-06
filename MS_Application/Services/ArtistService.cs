@@ -46,6 +46,7 @@ namespace MS_Application.Services
                     Name = x.Name,
                     StageName = x.StageName,
                     Country = x.Country,
+                    Url = x.Url,
                     IsActived = x.IsActived,
                     IsDeleted = x.IsDeleted,
                     CreatedAt = x.CreatedAt
@@ -80,6 +81,7 @@ namespace MS_Application.Services
                 Name = artist.Name,
                 StageName = artist.StageName,
                 Country = artist.Country,
+                Url = artist.Url,
                 IsActived = artist.IsActived,
                 IsDeleted = artist.IsDeleted,
                 CreatedAt = artist.CreatedAt
@@ -102,6 +104,7 @@ namespace MS_Application.Services
                 Name = dto.Name,
                 StageName = dto.StageName,
                 Country = dto.Country,
+                Url = dto.Url,
                 CreatedBy = userId
             };
 
@@ -114,6 +117,7 @@ namespace MS_Application.Services
                 Name = entity.Name,
                 StageName = entity.StageName,
                 Country = entity.Country,
+                Url = entity.Url,
                 CreatedAt = entity.CreatedAt
             };
 
@@ -138,8 +142,9 @@ namespace MS_Application.Services
             artist.Name = dto.Name;
             artist.StageName = dto.StageName;
             artist.Country = dto.Country;
+            artist.Url = dto.Url;
             artist.UpdatedBy = userId;
-            artist.UpdatedAt = DateTime.UtcNow;
+            artist.UpdatedAt = DateTime.Now;
 
             await repo.UpdateAsync(artist);
             await _distUnitOfWork.SaveChangesAsync();
@@ -150,6 +155,7 @@ namespace MS_Application.Services
                 Name = artist.Name,
                 StageName = artist.StageName,
                 Country = artist.Country,
+                Url = artist.Url,
                 CreatedAt = artist.CreatedAt
             };
 

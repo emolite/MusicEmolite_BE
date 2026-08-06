@@ -184,14 +184,37 @@ public class YoutubeAPIService : IYoutubeAPIService
                     likedSongIds.Contains(song.Id);
             }
 
+            // ===== Gọi song song videos.list + channels.list =====
+            var channelIds = videos
+                .Select(x => x.ChannelId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
             var detailsUrl =
                 $"https://www.googleapis.com/youtube/v3/videos" +
                 $"?part=contentDetails,statistics,status,player" +
                 $"&id={string.Join(",", videoIds)}" +
                 $"&key={apiKey}";
 
-            var detailsResponse = await _httpClient.GetAsync(detailsUrl);
+            var channelsUrl = channelIds.Count > 0
+                ? $"https://www.googleapis.com/youtube/v3/channels" +
+                  $"?part=snippet" +
+                  $"&id={string.Join(",", channelIds)}" +
+                  $"&key={apiKey}"
+                : null;
 
+            var detailsTask = _httpClient.GetAsync(detailsUrl);
+            var channelsTask = channelsUrl != null
+                ? _httpClient.GetAsync(channelsUrl)
+                : Task.FromResult<HttpResponseMessage?>(null);
+
+            await Task.WhenAll(detailsTask, channelsTask);
+
+            var detailsResponse = await detailsTask;
+            var channelsResponse = await channelsTask;
+
+            // ----- Xử lý video details -----
             if (detailsResponse.IsSuccessStatusCode)
             {
                 var detailsJson = await detailsResponse.Content.ReadAsStringAsync();
@@ -277,6 +300,39 @@ public class YoutubeAPIService : IYoutubeAPIService
                         video.EmbedHtml = player.TryGetProperty("embedHtml", out var embedHtml)
                             ? embedHtml.GetString() ?? ""
                             : "";
+                    }
+                }
+            }
+
+            // ----- Xử lý channel avatar -----
+            if (channelsResponse is { IsSuccessStatusCode: true })
+            {
+                var channelsJson = await channelsResponse.Content.ReadAsStringAsync();
+
+                using var channelsDoc = JsonDocument.Parse(channelsJson);
+
+                var channelById = channelsDoc.RootElement
+                    .GetProperty("items")
+                    .EnumerateArray()
+                    .ToDictionary(
+                        x => x.GetProperty("id").GetString() ?? "",
+                        x => x);
+
+                foreach (var video in videos)
+                {
+                    if (!channelById.TryGetValue(video.ChannelId, out var channelDetail))
+                        continue;
+
+                    if (channelDetail.TryGetProperty("snippet", out var channelSnippet) &&
+                        channelSnippet.TryGetProperty("thumbnails", out var channelThumbnails))
+                    {
+                        video.ChannelThumbnail = GetThumbnailUrl(channelThumbnails, "high");
+
+                        if (string.IsNullOrEmpty(video.ChannelThumbnail))
+                            video.ChannelThumbnail = GetThumbnailUrl(channelThumbnails, "medium");
+
+                        if (string.IsNullOrEmpty(video.ChannelThumbnail))
+                            video.ChannelThumbnail = GetThumbnailUrl(channelThumbnails, "default");
                     }
                 }
             }

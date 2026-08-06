@@ -17,5 +17,7 @@ namespace MS_Domain.Entities.DISTS
         public string StageName { get; set; }
         [Column("country")]
         public string? Country { get; set; }
+        [Column("url")]
+        public string? Url { get; set; }
     }
 }

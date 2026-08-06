@@ -11,5 +11,6 @@ namespace MS_Application.DataTransferObjects.Artist
         public string Name { get; set; }
         public string StageName { get; set; }
         public string Country { get; set; }
+        public string Url { get; set; }
     }
 }

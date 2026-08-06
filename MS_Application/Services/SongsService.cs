@@ -873,10 +873,20 @@ namespace MS_Application.Services
                 {
                     Name = dto.Channel.Trim(),
                     StageName = dto.Channel.Trim(),
+                    Url = dto.ChannelThumbnail,
                     CreatedBy = userId
                 };
 
                 await repoArtist.AddAsync(artist);
+                await _distUnitOfWork.SaveChangesAsync();
+            }
+            else
+            {
+                artist.Url = dto.ChannelThumbnail;
+                artist.UpdatedBy = userId;
+                artist.UpdatedAt = DateTime.Now;
+
+                await repoArtist.UpdateAsync(artist);
                 await _distUnitOfWork.SaveChangesAsync();
             }
 

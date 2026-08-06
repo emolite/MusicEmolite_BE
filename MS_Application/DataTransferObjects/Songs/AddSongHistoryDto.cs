@@ -11,6 +11,7 @@ namespace MS_Application.DataTransferObjects.Songs
         public string VideoId { get; set; } = "";
         public string Title { get; set; } = "";
         public string Channel { get; set; } = "";
+        public string ChannelThumbnail { get; set; } = "";
         public string ThumbnailHigh { get; set; } = "";
         public int Duration { get; set; }
     }

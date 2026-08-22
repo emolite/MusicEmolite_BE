@@ -12,6 +12,7 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
 
 builder.Services.Configure<FormOptions>(options =>
 {

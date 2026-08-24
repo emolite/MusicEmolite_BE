@@ -9,5 +9,6 @@ namespace MS_Application.DataTransferObjects.Friend
         public string? AvatarUrl { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime? CreatedAt { get; set; }
+        public bool IsPinned { get; set; }
     }
 }

@@ -252,11 +252,74 @@ namespace MS_Application.Services
                 .Select(x => x.RequesterId == userId ? x.AddresseeId : x.RequesterId)
                 .ToList();
 
-            var data = MapFriendUsers(friendships, friendUserIds, userId, "ACCEPTED");
+            var pinnedIds = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmFriendPin>().QueryAll()
+                .Where(x => !x.IsDeleted && x.UserId == userId && friendUserIds.Contains(x.FriendUserId))
+                .Select(x => x.FriendUserId)
+                .ToHashSet();
+
+            var data = MapFriendUsers(friendships, friendUserIds, userId, "ACCEPTED", pinnedIds)
+                .OrderByDescending(x => x.IsPinned)
+                .ToList();
 
             result.Data = data;
             result.Code = ResponseStatusCode.Status200;
             return result.Success(data, string.Format(Messages.Action.GetSuccess, "danh sách bạn bè"));
+        }
+
+        public async Task<BaseResponse<bool>> TogglePinAsync(long userId, long friendUserId)
+        {
+            var result = new BaseResponse<bool>();
+
+            var isFriend = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmFriendship>().QueryAll()
+                .Any(x =>
+                    !x.IsDeleted &&
+                    x.Status == "ACCEPTED" &&
+                    ((x.RequesterId == userId && x.AddresseeId == friendUserId) ||
+                     (x.RequesterId == friendUserId && x.AddresseeId == userId)));
+
+            if (!isFriend)
+            {
+                result.Code = ResponseStatusCode.Status404;
+                return result.Fail(false, "Không tìm thấy quan hệ bạn bè");
+            }
+
+            var repoPinRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmFriendPin>().QueryAll();
+            var repoPinWrite = _crmUnitOfWork.GetRepositoryAsync<CrmFriendPin>();
+
+            var existing = repoPinRead.FirstOrDefault(x =>
+                !x.IsDeleted && x.UserId == userId && x.FriendUserId == friendUserId);
+
+            var now = DateTime.Now;
+            bool isPinned;
+
+            if (existing != null)
+            {
+                existing.IsDeleted = true;
+                existing.UpdatedAt = now;
+                existing.UpdatedBy = userId;
+
+                await repoPinWrite.UpdateAsync(existing);
+                isPinned = false;
+            }
+            else
+            {
+                var pin = new CrmFriendPin
+                {
+                    UserId = userId,
+                    FriendUserId = friendUserId,
+                    CreatedAt = now,
+                    CreatedBy = userId
+                };
+
+                await repoPinWrite.AddAsync(pin);
+                isPinned = true;
+            }
+
+            await _crmUnitOfWork.SaveChangesAsync();
+
+            result.Data = isPinned;
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(isPinned, isPinned ? "Đã ghim bạn bè" : "Đã bỏ ghim bạn bè");
         }
 
         public async Task<BaseResponse<List<FriendUserDto>>> GetPendingRequestsAsync(long userId)
@@ -362,7 +425,7 @@ namespace MS_Application.Services
             return result.Success(data, string.Format(Messages.Action.GetSuccess, "kết quả tìm kiếm"));
         }
 
-        private List<FriendUserDto> MapFriendUsers(List<CrmFriendship> friendships, List<long> otherUserIds, long userId, string status)
+        private List<FriendUserDto> MapFriendUsers(List<CrmFriendship> friendships, List<long> otherUserIds, long userId, string status, HashSet<long>? pinnedIds = null)
         {
             var repoUserRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUser>().QueryAll();
             var repoProfileRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUserProfile>().QueryAll();
@@ -384,7 +447,8 @@ namespace MS_Application.Services
                     FullName = profile?.FullName,
                     AvatarUrl = string.IsNullOrWhiteSpace(profile?.Uri) ? null : _cloudinaryService.BuildImageUrl(profile!.Uri!),
                     Status = status,
-                    CreatedAt = f.CreatedAt
+                    CreatedAt = f.CreatedAt,
+                    IsPinned = pinnedIds?.Contains(otherUserId) ?? false
                 };
             }).ToList();
         }

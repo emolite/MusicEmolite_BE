@@ -9,6 +9,7 @@ namespace MS_Application.Services.Interfaces
         Task<BaseResponse<bool>> AcceptRequestAsync(long userId, long friendshipId);
         Task<BaseResponse<bool>> RejectRequestAsync(long userId, long friendshipId);
         Task<BaseResponse<bool>> RemoveFriendAsync(long userId, long friendUserId);
+        Task<BaseResponse<bool>> TogglePinAsync(long userId, long friendUserId);
         Task<BaseResponse<List<FriendUserDto>>> GetFriendsAsync(long userId);
         Task<BaseResponse<List<FriendUserDto>>> GetPendingRequestsAsync(long userId);
         Task<BaseResponse<List<FriendUserDto>>> GetSentRequestsAsync(long userId);

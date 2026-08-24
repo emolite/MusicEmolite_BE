@@ -63,5 +63,11 @@ namespace MS_API.Controllers
         {
             return await _friendService.RemoveFriendAsync(UserId, friendUserId);
         }
+
+        [HttpPut("{friendUserId}/pin")]
+        public async Task<BaseResponse<bool>> TogglePin(long friendUserId)
+        {
+            return await _friendService.TogglePinAsync(UserId, friendUserId);
+        }
     }
 }

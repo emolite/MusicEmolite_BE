@@ -12,6 +12,7 @@ namespace MS_Application.Services.Interfaces
     {
         Task<BaseTableResponse<AlbumResponseDto>> GetAlbums(BaseSearchDto<AlbumRequestDto> dto, long userId);
         Task<BaseTableResponse<AlbumResponseDto>> GetPublicAlbums(BaseSearchDto<AlbumRequestDto> dto);
+        Task<BaseResponse<AlbumResponseDto>> GetAlbumById(long id);
         Task<BaseResponse<AlbumResponseDto>> CreateAlbum(AlbumCreateDto dto, long userId);
 
         Task<BaseResponse<AlbumResponseDto>> UpdateAlbum(long id, AlbumUpdateDto dto, long userId);

@@ -20,6 +20,7 @@ namespace MS_Application.DataTransferObjects.Youtube
         public DateTime? PublishedAt { get; set; }
         public bool IsLiked { get; set; }
         public long? SongId { get; set; }
+        public List<long> AlbumIds { get; set; } = new();
 
         public string ThumbnailDefault { get; set; } = "";
         public string ThumbnailMedium { get; set; } = "";

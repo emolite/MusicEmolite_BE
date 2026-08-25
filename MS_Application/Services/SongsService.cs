@@ -949,6 +949,14 @@ namespace MS_Application.Services
 
             await _distUnitOfWork.SaveChangesAsync();
 
+            var repoSongAlbum = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistSongAlbums>()
+                .QueryAll();
+
+            var repoUserLike = _distUnitOfWork
+                .GetRepositoryReadOnlyAsync<DistUserLikes>()
+                .QueryAll();
+
             result.Data = new SongResponseDto
             {
                 Id = song.Id,
@@ -961,10 +969,17 @@ namespace MS_Application.Services
                 ArtistName = artist.Name,
                 Views = song.Views,
                 Likes = song.Likes,
-                IsLiked = false,
+                IsLiked = repoUserLike.Any(l =>
+                    l.UserId == userId
+                    && l.SongId == song.Id
+                    && !l.IsDeleted),
                 YoutubeVideoId = song.YoutubeVideoId,
                 PlayCount = song.PlayCount,
-                SourceType = song.SourceType
+                SourceType = song.SourceType,
+                AlbumIds = repoSongAlbum
+                    .Where(sa => sa.SongId == song.Id && !sa.IsDeleted)
+                    .Select(sa => sa.AlbumId)
+                    .ToList()
             };
 
             return result.Success(string.Format(Messages.Action.CreateSuccess, "song history"));
@@ -1201,6 +1216,9 @@ namespace MS_Application.Services
             if (album == null)
                 return result.Fail(string.Format(Messages.Validation.NotFound, "album"));
 
+            if (album.CreatedBy != userId)
+                return result.Fail("Bạn không có quyền chỉnh sửa album này");
+
             var existed = repoSongAlbum
                 .QueryCondition(x => x.SongId == songId && x.AlbumId == albumId && !x.IsDeleted)
                 .FirstOrDefault();
@@ -1219,6 +1237,39 @@ namespace MS_Application.Services
 
             result.Code = ResponseStatusCode.Status200;
             return result.Success(string.Format(Messages.Action.UpdateSuccess, "album"));
+        }
+
+        public async Task<BaseResponse<bool>> RemoveSongFromAlbum(long songId, long albumId, long userId)
+        {
+            var result = new BaseResponse<bool>();
+
+            var repoAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistAlbums>().QueryAll();
+            var repoSongAlbum = _distUnitOfWork.GetRepositoryAsync<DistSongAlbums>();
+
+            var album = repoAlbum.FirstOrDefault(x => x.Id == albumId && !x.IsDeleted);
+            if (album == null)
+                return result.Fail(false, string.Format(Messages.Validation.NotFound, "album"));
+
+            if (album.CreatedBy != userId)
+                return result.Fail(false, "Bạn không có quyền chỉnh sửa album này");
+
+            var existed = repoSongAlbum
+                .QueryCondition(x => x.SongId == songId && x.AlbumId == albumId && !x.IsDeleted)
+                .FirstOrDefault();
+
+            if (existed == null)
+                return result.Fail(false, "Bài hát không có trong album này");
+
+            existed.IsDeleted = true;
+            existed.UpdatedAt = DateTime.Now;
+            existed.UpdatedBy = userId;
+
+            await repoSongAlbum.UpdateAsync(existed);
+            await _distUnitOfWork.SaveChangesAsync();
+
+            result.Data = true;
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(true, string.Format(Messages.Action.UpdateSuccess, "album"));
         }
     }
 }

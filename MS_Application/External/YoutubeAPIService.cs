@@ -386,6 +386,10 @@ public class YoutubeAPIService : IYoutubeAPIService
             .GetRepositoryReadOnlyAsync<DistUserLikes>()
             .QueryAll();
 
+        var repoSongAlbum = _distUnitOfWork
+            .GetRepositoryReadOnlyAsync<DistSongAlbums>()
+            .QueryAll();
+
         var songByVideoId = repoSong
             .Where(x =>
                 !x.IsDeleted &&
@@ -410,6 +414,15 @@ public class YoutubeAPIService : IYoutubeAPIService
             .Select(x => x.SongId)
             .ToList();
 
+        var albumIdsBySongId = repoSongAlbum
+            .Where(x =>
+                !x.IsDeleted &&
+                songIds.Contains(x.SongId))
+            .Select(x => new { x.SongId, x.AlbumId })
+            .ToList()
+            .GroupBy(x => x.SongId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.AlbumId).ToList());
+
         foreach (var video in pageVideos)
         {
             var song = songByVideoId
@@ -419,6 +432,10 @@ public class YoutubeAPIService : IYoutubeAPIService
             video.IsLiked =
                 song != null &&
                 likedSongIds.Contains(song.Id);
+            video.AlbumIds =
+                song != null && albumIdsBySongId.TryGetValue(song.Id, out var albumIds)
+                    ? albumIds
+                    : new List<long>();
         }
     }
 

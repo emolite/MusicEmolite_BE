@@ -146,6 +146,35 @@ namespace MS_Application.Services
                 string.Format(Messages.Action.GetSuccess, "albums"));
         }
 
+        public async Task<BaseResponse<AlbumResponseDto>> GetAlbumById(long id)
+        {
+            var result = new BaseResponse<AlbumResponseDto>();
+
+            var album = await _distUnitOfWork.GetRepositoryReadOnlyAsync<DistAlbums>()
+                .QueryAll()
+                .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
+
+            if (album == null)
+                return result.Fail(string.Format(Messages.Validation.NotFound, "album"));
+
+            result.Data = new AlbumResponseDto
+            {
+                Id = album.Id,
+                Title = album.Title,
+                ReleaseDate = album.ReleaseDate,
+                ArtistId = album.ArtistId,
+                AlbumTypeName = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)album.AlbumType),
+                Uri = string.IsNullOrEmpty(album.Uri) ? null : _cloudinaryService.BuildImageUrl(album.Uri),
+                IsActived = album.IsActived,
+                IsDeleted = album.IsDeleted,
+                CreatedAt = album.CreatedAt,
+                CreatedBy = album.CreatedBy
+            };
+
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(string.Format(Messages.Action.GetSuccess, "album"));
+        }
+
         public async Task<BaseResponse<AlbumResponseDto>> CreateAlbum(AlbumCreateDto dto, long userId)
         {
             var result = new BaseResponse<AlbumResponseDto>();

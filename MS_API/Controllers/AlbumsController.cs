@@ -32,6 +32,14 @@ namespace MS_API.Controllers
             return Ok(result);
         }
 
+        [AllowAnonymous]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetAlbumById(long id)
+        {
+            var result = await _albumsService.GetAlbumById(id);
+            return Ok(result);
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateAlbum([FromForm] AlbumCreateDto dto)
         {

@@ -105,6 +105,13 @@ namespace MS_API.Controllers
             return Ok(result);
         }
 
+        [HttpDelete("albums")]
+        public async Task<IActionResult> RemoveSongFromAlbum(long songId, long albumId)
+        {
+            var result = await _songsService.RemoveSongFromAlbum(songId, albumId, User.GetUserId());
+            return Ok(result);
+        }
+
         [HttpPost("{id}/view")]
         public async Task<IActionResult> IncrementView(long id)
         {

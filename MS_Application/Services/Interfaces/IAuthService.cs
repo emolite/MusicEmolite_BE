@@ -23,6 +23,7 @@ namespace MS_Application.Services.Interfaces
         Task<BaseResponse<LoginResponseDto>> LoginWithGoogleAsync(GoogleLoginRequestDto dto);
         Task<BaseResponse<bool>> CompleteProfileAsync(CompleteProfileRequestDto dto);
         Task<BaseResponse<bool>> ResetPasswordAsync(ResetPasswordRequestDto dto);
+        Task<BaseResponse<bool>> ChangePasswordAsync(long userId, ChangePasswordRequestDto dto);
         Task<BaseResponse<RefreshTokenResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto dto);
         Task<BaseResponse<bool>> LogoutAsync(LogoutRequestDto dto);
     }

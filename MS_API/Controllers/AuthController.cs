@@ -85,6 +85,12 @@ namespace MS_API.Controllers
             return await _authService.ResetPasswordAsync(dto);
         }
 
+        [HttpPost("change-password")]
+        public async Task<BaseResponse<bool>> ChangePassword([FromBody] ChangePasswordRequestDto dto)
+        {
+            return await _authService.ChangePasswordAsync(UserId, dto);
+        }
+
         [AllowAnonymous]
         [HttpPost("refresh-token")]
         public async Task<BaseResponse<RefreshTokenResponseDto>> RefreshToken([FromBody] RefreshTokenRequestDto dto)

@@ -94,6 +94,13 @@ public static class Messages
         public const string UnknowMessage = "Có lỗi xảy ra , vui lòng thử lại";
     }
 
+    public static class ChangePassword
+    {
+        public const string UserNotFound = "Không tìm thấy tài khoản";
+        public const string WrongOldPassword = "Mật khẩu hiện tại không đúng";
+        public const string Success = "Đổi mật khẩu thành công";
+    }
+
     public static class Otp
     {
         public const string SendSuccess = "Mã OTP đã được gửi tới email của bạn";

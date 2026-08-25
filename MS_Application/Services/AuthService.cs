@@ -513,6 +513,46 @@ namespace MS_Application.Services
             return result.Success(true, Messages.PasswordReset.Success);
         }
 
+        public async Task<BaseResponse<bool>> ChangePasswordAsync(long userId, ChangePasswordRequestDto dto)
+        {
+            var result = new BaseResponse<bool>();
+
+            if (string.IsNullOrWhiteSpace(dto.NewPassword) || dto.NewPassword.Length < 6)
+            {
+                result.Code = ResponseStatusCode.Status400;
+                return result.Fail(false, string.Format(Messages.Validation.MinLength, "Mật khẩu", 6));
+            }
+
+            var repoUserRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUser>().QueryAll();
+            var repoUserWrite = _crmUnitOfWork.GetRepositoryAsync<CrmUser>();
+
+            var user = repoUserRead.FirstOrDefault(u => u.Id == userId);
+
+            if (user == null)
+            {
+                result.Code = ResponseStatusCode.Status404;
+                return result.Fail(false, Messages.ChangePassword.UserNotFound);
+            }
+
+            if (!HashHelper.VerifyPassword(dto.OldPassword, user.PasswordHash, user.PasswordSalt))
+            {
+                result.Code = ResponseStatusCode.Status400;
+                return result.Fail(false, Messages.ChangePassword.WrongOldPassword);
+            }
+
+            HashHelper.CreatePasswordHash(dto.NewPassword, out string passwordHash, out string passwordSalt);
+
+            user.PasswordHash = passwordHash;
+            user.PasswordSalt = passwordSalt;
+            user.UpdatedAt = DateTime.Now;
+
+            await repoUserWrite.UpdateAsync(user);
+            await _crmUnitOfWork.SaveChangesAsync();
+
+            result.Code = ResponseStatusCode.Status200;
+            return result.Success(true, Messages.ChangePassword.Success);
+        }
+
         public async Task<BaseResponse<RefreshTokenResponseDto>> RefreshTokenAsync(RefreshTokenRequestDto dto)
         {
             var result = new BaseResponse<RefreshTokenResponseDto>();

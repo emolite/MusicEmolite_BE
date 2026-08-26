@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
@@ -6,6 +6,8 @@ using MS_Application.DataTransferObjects.Youtube;
 using MS_Application.Repositories.Interfaces;
 using MS_Application.Services.Interfaces.External;
 using MS_Domain.Entities.DISTS;
+using System.Collections.Concurrent;
+using System.Net;
 using System.Text.Json;
 using System.Xml;
 
@@ -19,15 +21,43 @@ public class YoutubeAPIService : IYoutubeAPIService
     private readonly IMemoryCache _cache;
 
     /// <summary>
-    /// Youtube search only supports cursor pagination (pageToken), not numeric
-    /// pages, and each search.list call costs 100 quota units. So instead of
-    /// re-querying Youtube on every "load more" (infinite scroll), we fetch up
-    /// to this many results once per keyword, cache them, and slice pages out
-    /// of the cache - scrolling further within the same search costs 0 extra
-    /// quota until the cache entry expires.
+    /// One Youtube search.list page = up to 50 results = 100 quota units. We
+    /// used to eagerly prefetch a large batch (originally 300, i.e. up to 6
+    /// calls) on every NEW keyword so infinite-scroll on the FE would never
+    /// have to hit Youtube again. That's what was blowing through the
+    /// "Search Queries per day" quota (hard-capped at 100 requests/day) after
+    /// only a handful of new keywords per day.
+    ///
+    /// Instead we now grow the cached result list lazily, one Youtube page at
+    /// a time, only when a request actually needs records we don't have yet
+    /// (see SearchAsync). A user who never scrolls past the first screen
+    /// costs exactly 1 search.list call for that keyword, no matter how deep
+    /// the cache eventually grows for users who keep scrolling.
     /// </summary>
-    private const int MaxCachedRecords = 300;
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
+    private const int YoutubePageSize = 50;
+
+    // How long we keep a keyword's accumulated results around. Generous
+    // because repeat searches for the same/popular keyword should be pure
+    // cache hits instead of new search.list calls.
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(6);
+
+    // When Youtube tells us we're quota-exceeded (429), stop calling it for a
+    // while instead of letting every request for a new/deeper keyword page
+    // fire another doomed request.
+    private const string QuotaExceededCacheKey = "youtube_quota_exceeded";
+    private static readonly TimeSpan QuotaExceededCooldown = TimeSpan.FromMinutes(15);
+
+    // Per-keyword gate: if N users hit a brand-new (or not-yet-deep-enough)
+    // keyword at the same moment, only the first actually calls Youtube - the
+    // rest wait, then read the cache entry that call just grew.
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _searchLocks = new();
+
+    private class SearchCacheEntry
+    {
+        public List<YoutubeVideoDto> Videos { get; } = new();
+        public string? NextPageToken { get; set; }
+        public bool NoMoreResults { get; set; }
+    }
 
     public YoutubeAPIService(
         IConfiguration configuration,
@@ -62,27 +92,111 @@ public class YoutubeAPIService : IYoutubeAPIService
             ? Math.Min(request.PageSize, 50)
             : 20;
 
+        var currentPage = Math.Max(request.Page, 1);
+        var neededCount = currentPage * pageSize;
+
         var cacheKey = $"youtube_search_{keyword.Trim().ToLowerInvariant()}";
 
-        if (!_cache.TryGetValue(cacheKey, out List<YoutubeVideoDto>? allVideos) || allVideos == null)
+        if (!_cache.TryGetValue(cacheKey, out SearchCacheEntry? entry) || entry == null)
         {
-            allVideos = await FetchAndEnrichVideosAsync(keyword, apiKey);
+            entry = new SearchCacheEntry();
+        }
 
-            if (allVideos.Count > 0)
+        var quotaBlocked = false;
+
+        // Only talk to Youtube if the cache doesn't already have enough records
+        // to serve the page being requested right now.
+        if (entry.Videos.Count < neededCount && !entry.NoMoreResults)
+        {
+            var gate = _searchLocks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync();
+
+            try
             {
-                _cache.Set(cacheKey, allVideos, CacheDuration);
+                // Another request may have grown (or created) this cache entry while we waited.
+                if (_cache.TryGetValue(cacheKey, out SearchCacheEntry? fresh) && fresh != null)
+                {
+                    entry = fresh;
+                }
+
+                while (entry.Videos.Count < neededCount && !entry.NoMoreResults)
+                {
+                    if (_cache.TryGetValue(QuotaExceededCacheKey, out _))
+                    {
+                        quotaBlocked = true;
+                        break;
+                    }
+
+                    var (fetched, nextToken, hitQuota) =
+                        await FetchYoutubePageAsync(keyword, apiKey, entry.NextPageToken);
+
+                    if (hitQuota)
+                    {
+                        quotaBlocked = true;
+                        _cache.Set(QuotaExceededCacheKey, true, QuotaExceededCooldown);
+                        break;
+                    }
+
+                    if (fetched.Count > 0)
+                    {
+                        entry.Videos.AddRange(fetched);
+                    }
+
+                    entry.NextPageToken = nextToken;
+
+                    if (fetched.Count == 0 || string.IsNullOrEmpty(nextToken))
+                    {
+                        entry.NoMoreResults = true;
+                    }
+                }
+
+                if (entry.Videos.Count > 0)
+                {
+                    _cache.Set(cacheKey, entry, CacheDuration);
+                }
+            }
+            finally
+            {
+                gate.Release();
             }
         }
 
-        var totalRecords = allVideos.Count;
-        var totalPages = totalRecords == 0
-            ? 0
-            : (int)Math.Ceiling(totalRecords / (double)pageSize);
+        if (entry.Videos.Count == 0)
+        {
+            if (quotaBlocked)
+            {
+                response.Code = ResponseStatusCode.Status429;
+                response.Type = GlobalConstants.ResponseType.Error;
+                response.Message = "Youtube API quota exceeded, please try again later";
 
-        var currentPage = Math.Max(request.Page, 1);
+                return response;
+            }
+
+            response.Code = ResponseStatusCode.Status200;
+            response.Type = GlobalConstants.ResponseType.Success;
+            response.Message = "Search youtube success";
+            response.TotalRecords = 0;
+            response.TotalPages = 0;
+            response.Data = new List<YoutubeVideoDto>();
+
+            return response;
+        }
+
+        var totalRecords = entry.Videos.Count;
+        var loadedPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+
+        // While Youtube may still have more (we just haven't fetched it yet),
+        // report one page beyond what's loaded so the FE's infinite-scroll
+        // `hasMore` check (page < totalPages) keeps triggering `loadMore()` -
+        // that next call is what actually fetches it. Once Youtube is
+        // exhausted, or we're sitting out a quota cooldown, stop advertising
+        // a page we can't actually serve.
+        var totalPages = (entry.NoMoreResults || quotaBlocked)
+            ? loadedPages
+            : Math.Max(currentPage + 1, loadedPages);
 
         // Clone so per-user like status (set below) never mutates the shared cache entry.
-        var pageVideos = allVideos
+        var pageVideos = entry.Videos
             .Skip((currentPage - 1) * pageSize)
             .Take(pageSize)
             .Select(CloneVideo)
@@ -104,31 +218,42 @@ public class YoutubeAPIService : IYoutubeAPIService
         return response;
     }
 
-    private async Task<List<YoutubeVideoDto>> FetchAndEnrichVideosAsync(string keyword, string? apiKey)
+    /// <summary>
+    /// Fetches exactly one Youtube search.list page (up to 50 results) plus
+    /// the videos.list/channels.list enrichment for just that page, and
+    /// returns Youtube's next page token so the caller can keep going lazily.
+    /// </summary>
+    private async Task<(List<YoutubeVideoDto> Videos, string? NextPageToken, bool QuotaExceeded)> FetchYoutubePageAsync(
+        string keyword, string? apiKey, string? pageToken)
     {
-        var videos = new List<YoutubeVideoDto>();
-        string? pageToken = null;
+        var searchUrl =
+            $"https://www.googleapis.com/youtube/v3/search" +
+            $"?part=snippet" +
+            $"&type=video" +
+            $"&maxResults={YoutubePageSize}" +
+            $"&q={Uri.EscapeDataString(keyword)}" +
+            (string.IsNullOrEmpty(pageToken) ? "" : $"&pageToken={pageToken}") +
+            $"&key={apiKey}";
 
-        do
+        var youtubeResponse = await _httpClient.GetAsync(searchUrl);
+
+        if (youtubeResponse.StatusCode == HttpStatusCode.TooManyRequests)
         {
-            var searchUrl =
-                $"https://www.googleapis.com/youtube/v3/search" +
-                $"?part=snippet" +
-                $"&type=video" +
-                $"&maxResults=50" +
-                $"&q={Uri.EscapeDataString(keyword)}" +
-                (string.IsNullOrEmpty(pageToken) ? "" : $"&pageToken={pageToken}") +
-                $"&key={apiKey}";
+            return (new List<YoutubeVideoDto>(), null, true);
+        }
 
-            var youtubeResponse = await _httpClient.GetAsync(searchUrl);
+        if (!youtubeResponse.IsSuccessStatusCode)
+        {
+            return (new List<YoutubeVideoDto>(), null, false);
+        }
 
-            if (!youtubeResponse.IsSuccessStatusCode)
-                break;
+        var videos = new List<YoutubeVideoDto>();
+        string? nextPageToken;
 
-            var json = await youtubeResponse.Content.ReadAsStringAsync();
+        var json = await youtubeResponse.Content.ReadAsStringAsync();
 
-            using var doc = JsonDocument.Parse(json);
-
+        using (var doc = JsonDocument.Parse(json))
+        {
             foreach (var item in doc.RootElement
                          .GetProperty("items")
                          .EnumerateArray())
@@ -190,12 +315,25 @@ public class YoutubeAPIService : IYoutubeAPIService
                 videos.Add(video);
             }
 
-            pageToken = doc.RootElement.TryGetProperty("nextPageToken", out var npt)
+            nextPageToken = doc.RootElement.TryGetProperty("nextPageToken", out var npt)
                 ? npt.GetString()
                 : null;
         }
-        while (videos.Count < MaxCachedRecords && !string.IsNullOrEmpty(pageToken));
 
+        await EnrichVideosAsync(videos, apiKey);
+
+        return (videos, nextPageToken, false);
+    }
+
+    /// <summary>
+    /// Fills in duration/stats/embeddability/channel-thumbnail for one page
+    /// (&lt;= 50) of freshly-fetched videos via videos.list + channels.list.
+    /// These endpoints aren't the tight "Search Queries per day" quota - they
+    /// draw from the much larger general daily pool - so batching per page
+    /// here (instead of across the whole cached list) is fine.
+    /// </summary>
+    private async Task EnrichVideosAsync(List<YoutubeVideoDto> videos, string? apiKey)
+    {
         var videoIds = videos
             .Select(x => x.VideoId)
             .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -203,11 +341,7 @@ public class YoutubeAPIService : IYoutubeAPIService
             .ToList();
 
         if (videoIds.Count == 0)
-            return videos;
-
-        // ===== Gọi song song videos.list + channels.list, chia batch 50 id/lần =====
-        var detailsById = new Dictionary<string, JsonElement>();
-        var detailsDocs = new List<JsonDocument>();
+            return;
 
         var channelIds = videos
             .Select(x => x.ChannelId)
@@ -215,27 +349,26 @@ public class YoutubeAPIService : IYoutubeAPIService
             .Distinct()
             .ToList();
 
+        var detailsById = new Dictionary<string, JsonElement>();
         var channelById = new Dictionary<string, JsonElement>();
-        var channelDocs = new List<JsonDocument>();
+        var docsToDispose = new List<JsonDocument>();
 
         try
         {
-            foreach (var idBatch in Chunk(videoIds, 50))
+            // videoIds/channelIds are each <= 50 here (one search page), so this is always a single call.
+            var detailsUrl =
+                $"https://www.googleapis.com/youtube/v3/videos" +
+                $"?part=contentDetails,statistics,status,player" +
+                $"&id={string.Join(",", videoIds)}" +
+                $"&key={apiKey}";
+
+            var detailsResponse = await _httpClient.GetAsync(detailsUrl);
+
+            if (detailsResponse.IsSuccessStatusCode)
             {
-                var detailsUrl =
-                    $"https://www.googleapis.com/youtube/v3/videos" +
-                    $"?part=contentDetails,statistics,status,player" +
-                    $"&id={string.Join(",", idBatch)}" +
-                    $"&key={apiKey}";
-
-                var detailsResponse = await _httpClient.GetAsync(detailsUrl);
-
-                if (!detailsResponse.IsSuccessStatusCode)
-                    continue;
-
                 var detailsJson = await detailsResponse.Content.ReadAsStringAsync();
                 var detailsDoc = JsonDocument.Parse(detailsJson);
-                detailsDocs.Add(detailsDoc);
+                docsToDispose.Add(detailsDoc);
 
                 foreach (var item in detailsDoc.RootElement.GetProperty("items").EnumerateArray())
                 {
@@ -245,28 +378,28 @@ public class YoutubeAPIService : IYoutubeAPIService
                 }
             }
 
-            foreach (var idBatch in Chunk(channelIds, 50))
+            if (channelIds.Count > 0)
             {
                 var channelsUrl =
                     $"https://www.googleapis.com/youtube/v3/channels" +
                     $"?part=snippet" +
-                    $"&id={string.Join(",", idBatch)}" +
+                    $"&id={string.Join(",", channelIds)}" +
                     $"&key={apiKey}";
 
                 var channelsResponse = await _httpClient.GetAsync(channelsUrl);
 
-                if (!channelsResponse.IsSuccessStatusCode)
-                    continue;
-
-                var channelsJson = await channelsResponse.Content.ReadAsStringAsync();
-                var channelsDoc = JsonDocument.Parse(channelsJson);
-                channelDocs.Add(channelsDoc);
-
-                foreach (var item in channelsDoc.RootElement.GetProperty("items").EnumerateArray())
+                if (channelsResponse.IsSuccessStatusCode)
                 {
-                    var id = item.GetProperty("id").GetString() ?? "";
-                    if (!string.IsNullOrEmpty(id))
-                        channelById[id] = item;
+                    var channelsJson = await channelsResponse.Content.ReadAsStringAsync();
+                    var channelsDoc = JsonDocument.Parse(channelsJson);
+                    docsToDispose.Add(channelsDoc);
+
+                    foreach (var item in channelsDoc.RootElement.GetProperty("items").EnumerateArray())
+                    {
+                        var id = item.GetProperty("id").GetString() ?? "";
+                        if (!string.IsNullOrEmpty(id))
+                            channelById[id] = item;
+                    }
                 }
             }
 
@@ -360,11 +493,8 @@ public class YoutubeAPIService : IYoutubeAPIService
         }
         finally
         {
-            foreach (var d in detailsDocs) d.Dispose();
-            foreach (var d in channelDocs) d.Dispose();
+            foreach (var d in docsToDispose) d.Dispose();
         }
-
-        return videos;
     }
 
     private async Task AttachLikeStatusAsync(List<YoutubeVideoDto> pageVideos, long userId)
@@ -436,14 +566,6 @@ public class YoutubeAPIService : IYoutubeAPIService
                 song != null && albumIdsBySongId.TryGetValue(song.Id, out var albumIds)
                     ? albumIds
                     : new List<long>();
-        }
-    }
-
-    private static IEnumerable<List<string>> Chunk(List<string> source, int size)
-    {
-        for (var i = 0; i < source.Count; i += size)
-        {
-            yield return source.Skip(i).Take(size).ToList();
         }
     }
 

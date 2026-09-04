@@ -25,6 +25,17 @@ namespace MS_API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Same listing as GetArtists, but requires login - for admin management
+        /// screens that shouldn't go through the anonymous public endpoint.
+        /// </summary>
+        [HttpPost("admin/search")]
+        public async Task<IActionResult> GetArtistsForAdmin([FromBody] BaseSearchDto<ArtistRequestDto> dto)
+        {
+            var result = await _artistsService.GetArtists(dto);
+            return Ok(result);
+        }
+
         [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetArtistById(long id)

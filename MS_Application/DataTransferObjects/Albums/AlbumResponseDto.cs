@@ -13,5 +13,7 @@ namespace MS_Application.DataTransferObjects.Albums
         public string AlbumTypeName { get; set; }
 
         public string? Uri { get; set; }
+
+        public string? CreatedByName { get; set; }
     }
 }

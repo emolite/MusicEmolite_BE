@@ -6,6 +6,7 @@ using MS_Application.Helpers;
 using MS_Application.Repositories.Interfaces;
 using MS_Application.Services.Interfaces;
 using MS_Application.Services.Interfaces.External;
+using MS_Domain.Entities.CRMS;
 using MS_Domain.Entities.DISTS;
 using MS_Domain.Enums;
 
@@ -14,12 +15,37 @@ namespace MS_Application.Services
     public class AlbumsService : IAlbumsService
     {
         private readonly IDistUnitOfWork _distUnitOfWork;
+        private readonly ICrmUnitOfWork _crmUnitOfWork;
         private readonly ICloudinaryService _cloudinaryService;
 
-        public AlbumsService(IDistUnitOfWork distUnitOfWork, ICloudinaryService cloudinaryService)
+        public AlbumsService(IDistUnitOfWork distUnitOfWork, ICrmUnitOfWork crmUnitOfWork, ICloudinaryService cloudinaryService)
         {
             _distUnitOfWork = distUnitOfWork;
+            _crmUnitOfWork = crmUnitOfWork;
             _cloudinaryService = cloudinaryService;
+        }
+
+        /// <summary>
+        /// DIST (albums) and CRM (users) live in separate databases, so the
+        /// creator's display name can't be joined in SQL - resolve it here
+        /// with a small in-memory lookup instead.
+        /// </summary>
+        private Dictionary<long, string> ResolveUserNames(IEnumerable<long?> userIds)
+        {
+            var ids = userIds.Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
+
+            if (ids.Count == 0)
+                return new Dictionary<long, string>();
+
+            var repoUser = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUser>().QueryAll();
+            var repoProfile = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUserProfile>().QueryAll();
+
+            var users = repoUser.Where(u => ids.Contains(u.Id)).ToList();
+            var profiles = repoProfile.Where(p => ids.Contains(p.UserId)).ToList();
+
+            return users.ToDictionary(
+                u => u.Id,
+                u => profiles.FirstOrDefault(p => p.UserId == u.Id)?.FullName ?? u.Username);
         }
 
         public async Task<BaseTableResponse<AlbumResponseDto>> GetAlbums(BaseSearchDto<AlbumRequestDto> dto, long userId)
@@ -58,6 +84,47 @@ namespace MS_Application.Services
                 .ToList();
 
             result.TotalRecords = totalRecords;
+            result.Data = data;
+            result.Code = ResponseStatusCode.Status200;
+
+            return result.Success(string.Format(Messages.Action.GetSuccess, "albums"));
+        }
+
+        /// <summary>Admin-only: all albums (public or private) created by a specific user.</summary>
+        public async Task<BaseTableResponse<AlbumResponseDto>> GetAlbumsByUserForAdmin(long userId, BaseSearchDto<AlbumRequestDto> dto)
+        {
+            var result = new BaseTableResponse<AlbumResponseDto>();
+
+            dto.Page = dto.Page <= 0 ? 1 : dto.Page;
+            dto.PageSize = dto.PageSize <= 0 ? GlobalConstants.DefaultPageSize : dto.PageSize;
+
+            var repoAlbum = _distUnitOfWork.GetRepositoryReadOnlyAsync<DistAlbums>().QueryAll();
+
+            var query = repoAlbum.Where(x => !x.IsDeleted && x.CreatedBy == userId);
+
+            var totalRecords = query.Count();
+
+            var data = query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip(dto.Start)
+                .Take(dto.PageSize)
+                .Select(x => new AlbumResponseDto
+                {
+                    Id = x.Id,
+                    Title = x.Title,
+                    ReleaseDate = x.ReleaseDate,
+                    ArtistId = x.ArtistId,
+                    AlbumTypeName = EnumHelper.GetDisplayName((MS_Domain.Enums.Type)x.AlbumType),
+                    Uri = string.IsNullOrEmpty(x.Uri) ? null : _cloudinaryService.BuildImageUrl(x.Uri),
+                    IsActived = x.IsActived,
+                    IsDeleted = x.IsDeleted,
+                    CreatedAt = x.CreatedAt,
+                    CreatedBy = x.CreatedBy
+                })
+                .ToList();
+
+            result.TotalRecords = totalRecords;
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
             result.Code = ResponseStatusCode.Status200;
 
@@ -133,6 +200,14 @@ namespace MS_Application.Services
                 })
                 .ToList();
 
+            var userNames = ResolveUserNames(data.Select(x => x.CreatedBy));
+
+            foreach (var item in data)
+            {
+                if (item.CreatedBy.HasValue && userNames.TryGetValue(item.CreatedBy.Value, out var name))
+                    item.CreatedByName = name;
+            }
+
             result.TotalRecords = totalRecords;
 
             result.TotalPages = (int)Math.Ceiling(
@@ -157,6 +232,8 @@ namespace MS_Application.Services
             if (album == null)
                 return result.Fail(string.Format(Messages.Validation.NotFound, "album"));
 
+            var userNames = ResolveUserNames(new long?[] { album.CreatedBy });
+
             result.Data = new AlbumResponseDto
             {
                 Id = album.Id,
@@ -168,7 +245,8 @@ namespace MS_Application.Services
                 IsActived = album.IsActived,
                 IsDeleted = album.IsDeleted,
                 CreatedAt = album.CreatedAt,
-                CreatedBy = album.CreatedBy
+                CreatedBy = album.CreatedBy,
+                CreatedByName = album.CreatedBy.HasValue && userNames.TryGetValue(album.CreatedBy.Value, out var creatorName) ? creatorName : null
             };
 
             result.Code = ResponseStatusCode.Status200;

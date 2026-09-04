@@ -46,6 +46,14 @@ namespace MS_API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("admin/search")]
+        public async Task<IActionResult> GetSongsForAdmin([FromBody] BaseSearchDto<SongRequestDto> dto)
+        {
+            var result = await _songsService.GetPublicSongs(dto, UserId);
+
+            return Ok(result);
+        }
+
         [AllowAnonymous]
         [HttpPost("public/trending")]
         public async Task<IActionResult> GetTrendingSongs([FromBody] BaseSearchDto<SongRequestDto> dto)
@@ -109,6 +117,13 @@ namespace MS_API.Controllers
         public async Task<IActionResult> RemoveSongFromAlbum(long songId, long albumId)
         {
             var result = await _songsService.RemoveSongFromAlbum(songId, albumId, User.GetUserId());
+            return Ok(result);
+        }
+
+        [HttpPost("admin/liked-by-user/{userId}")]
+        public async Task<IActionResult> GetLikedSongsByUserForAdmin(long userId, [FromBody] BaseSearchDto<SongRequestDto> dto)
+        {
+            var result = await _songsService.GetLikedSongsByUserForAdmin(userId, dto);
             return Ok(result);
         }
 

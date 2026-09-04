@@ -34,10 +34,25 @@ namespace MS_Application.Services
                     x.StageName.Contains(dto.SearchParams.Keyword));
             }
 
+            if (!string.IsNullOrWhiteSpace(dto.SearchParams.Country))
+            {
+                query = query.Where(x =>
+                    x.Country.Contains(dto.SearchParams.Country));
+            }
+
+            if (dto.SearchParams.IsActived.HasValue)
+            {
+                query = query.Where(x =>
+                    x.IsActived == dto.SearchParams.IsActived.Value);
+            }
+
+            query = dto.SearchParams.SortBy?.ToLower() == "createdat" && dto.Asc
+                ? query.OrderBy(x => x.CreatedAt)
+                : query.OrderByDescending(x => x.CreatedAt);
+
             var totalRecords = query.Count();
 
             var data = query
-                .OrderByDescending(x => x.CreatedAt)
                 .Skip(dto.Start)
                 .Take(dto.PageSize)
                 .Select(x => new ArtistResponseDto
@@ -54,6 +69,7 @@ namespace MS_Application.Services
                 .ToList();
 
             result.TotalRecords = totalRecords;
+            result.TotalPages = (int)Math.Ceiling((double)totalRecords / dto.PageSize);
             result.Data = data;
             result.Code = ResponseStatusCode.Status200;
 

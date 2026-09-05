@@ -67,9 +67,17 @@ public class FoodEmoliteService : IFoodEmoliteService
         return await ParseResponseAsync(response);
     }
 
-    public async Task<JsonElement> GetAllStoresAsync(int page = 1, int pageSize = 10)
+    public async Task<JsonElement> GetAllStoresAsync(int page = 1, int pageSize = 10, string? keyword = null, bool? isActive = null)
     {
-        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/stores?page={page}&pageSize={pageSize}");
+        var query = $"?page={page}&pageSize={pageSize}";
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query += $"&keyword={Uri.EscapeDataString(keyword)}";
+
+        if (isActive.HasValue)
+            query += $"&isActive={isActive.Value}";
+
+        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/stores{query}");
         return await ParseResponseAsync(response);
     }
 
@@ -89,15 +97,28 @@ public class FoodEmoliteService : IFoodEmoliteService
 
     // ===================== Accounts =====================
 
-    public async Task<JsonElement> GetAllUsersAsync(int page = 1, int pageSize = 10)
+    public async Task<JsonElement> GetAllUsersAsync(int page = 1, int pageSize = 10, string? keyword = null)
     {
-        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/users?page={page}&pageSize={pageSize}");
+        var query = $"?page={page}&pageSize={pageSize}";
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query += $"&keyword={Uri.EscapeDataString(keyword)}";
+
+        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/users{query}");
         return await ParseResponseAsync(response);
     }
 
-    public async Task<JsonElement> GetAllAgentsAsync(int page = 1, int pageSize = 10)
+    public async Task<JsonElement> GetAllAgentsAsync(int page = 1, int pageSize = 10, string? keyword = null, bool? isActive = null)
     {
-        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/agents?page={page}&pageSize={pageSize}");
+        var query = $"?page={page}&pageSize={pageSize}";
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query += $"&keyword={Uri.EscapeDataString(keyword)}";
+
+        if (isActive.HasValue)
+            query += $"&isActive={isActive.Value}";
+
+        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/agents{query}");
         return await ParseResponseAsync(response);
     }
 
@@ -144,9 +165,50 @@ public class FoodEmoliteService : IFoodEmoliteService
 
     // ===================== Store foods =====================
 
-    public async Task<JsonElement> GetAllStoreFoodsAsync(int page = 1, int pageSize = 10)
+    public async Task<JsonElement> GetAllStoreFoodsAsync(int page = 1, int pageSize = 10, string? storeRefCode = null, string? keyword = null)
     {
-        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/store-foods?page={page}&pageSize={pageSize}");
+        var query = $"?page={page}&pageSize={pageSize}";
+
+        if (!string.IsNullOrWhiteSpace(storeRefCode))
+            query += $"&storeRefCode={Uri.EscapeDataString(storeRefCode)}";
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query += $"&keyword={Uri.EscapeDataString(keyword)}";
+
+        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/store-foods{query}");
+        return await ParseResponseAsync(response);
+    }
+
+    // ===================== Categories =====================
+
+    public async Task<JsonElement> GetAllCategoriesAsync(int page = 1, int pageSize = 10, string? keyword = null, string? storeRefCode = null, string? sortBy = null, bool asc = false)
+    {
+        var query = $"?page={page}&pageSize={pageSize}&asc={asc}";
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            query += $"&keyword={Uri.EscapeDataString(keyword)}";
+
+        if (!string.IsNullOrWhiteSpace(storeRefCode))
+            query += $"&storeRefCode={Uri.EscapeDataString(storeRefCode)}";
+
+        if (!string.IsNullOrWhiteSpace(sortBy))
+            query += $"&sortBy={Uri.EscapeDataString(sortBy)}";
+
+        var response = await _httpClient.GetAsync($"{_baseUrl}/admin/categories{query}");
+        return await ParseResponseAsync(response);
+    }
+
+    // ===================== Orders =====================
+
+    public async Task<JsonElement> SearchOrdersAsync(BaseSearchDto<FoodOrderSearchRequest> request)
+    {
+        var response = await _httpClient.PostAsync($"{_baseUrl}/admin/orders/search", ToJsonContent(request));
+        return await ParseResponseAsync(response);
+    }
+
+    public async Task<JsonElement> SearchActivityLogsAsync(BaseSearchDto<FoodActivityLogSearchRequest> request)
+    {
+        var response = await _httpClient.PostAsync($"{_baseUrl}/admin/activity-logs/search", ToJsonContent(request));
         return await ParseResponseAsync(response);
     }
 

@@ -18,13 +18,13 @@ namespace MS_Application.Services.Interfaces.External
         Task<JsonElement> CreateStoreAsync(CreateFoodStoreRequestDto request);
         Task<JsonElement> UpdateStoreAsync(long id, UpdateFoodStoreRequestDto request);
         Task<JsonElement> DeleteStoreAsync(long id);
-        Task<JsonElement> GetAllStoresAsync(int page = 1, int pageSize = 10);
+        Task<JsonElement> GetAllStoresAsync(int page = 1, int pageSize = 10, string? keyword = null, bool? isActive = null);
         Task<JsonElement> GetStoreDetailAsync(long id);
         Task<JsonElement> GetStoresByOwnerAsync(string ownerRefCode, int page = 1, int pageSize = 10);
 
         // Accounts
-        Task<JsonElement> GetAllUsersAsync(int page = 1, int pageSize = 10);
-        Task<JsonElement> GetAllAgentsAsync(int page = 1, int pageSize = 10);
+        Task<JsonElement> GetAllUsersAsync(int page = 1, int pageSize = 10, string? keyword = null);
+        Task<JsonElement> GetAllAgentsAsync(int page = 1, int pageSize = 10, string? keyword = null, bool? isActive = null);
         Task<JsonElement> CreateAgentAsync(CreateFoodAgentRequestDto request);
 
         // Revenue
@@ -36,6 +36,15 @@ namespace MS_Application.Services.Interfaces.External
         Task<JsonElement> SearchCustomersAsync(BaseSearchDto<FoodCustomerSearchRequest> request);
 
         // Store foods
-        Task<JsonElement> GetAllStoreFoodsAsync(int page = 1, int pageSize = 10);
+        Task<JsonElement> GetAllStoreFoodsAsync(int page = 1, int pageSize = 10, string? storeRefCode = null, string? keyword = null);
+
+        // Categories
+        Task<JsonElement> GetAllCategoriesAsync(int page = 1, int pageSize = 10, string? keyword = null, string? storeRefCode = null, string? sortBy = null, bool asc = false);
+
+        // Orders
+        Task<JsonElement> SearchOrdersAsync(BaseSearchDto<FoodOrderSearchRequest> request);
+
+        // Activity logs
+        Task<JsonElement> SearchActivityLogsAsync(BaseSearchDto<FoodActivityLogSearchRequest> request);
     }
 }

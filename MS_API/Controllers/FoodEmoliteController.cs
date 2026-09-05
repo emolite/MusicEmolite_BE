@@ -38,9 +38,13 @@ namespace MS_API.Controllers
         }
 
         [HttpGet("stores")]
-        public async Task<IActionResult> GetAllStores([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllStores(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? keyword = null,
+            [FromQuery] bool? isActive = null)
         {
-            var result = await _foodEmoliteService.GetAllStoresAsync(page, pageSize);
+            var result = await _foodEmoliteService.GetAllStoresAsync(page, pageSize, keyword, isActive);
             return Ok(result);
         }
 
@@ -62,16 +66,23 @@ namespace MS_API.Controllers
         }
 
         [HttpGet("users")]
-        public async Task<IActionResult> GetAllUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllUsers(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? keyword = null)
         {
-            var result = await _foodEmoliteService.GetAllUsersAsync(page, pageSize);
+            var result = await _foodEmoliteService.GetAllUsersAsync(page, pageSize, keyword);
             return Ok(result);
         }
 
         [HttpGet("agents")]
-        public async Task<IActionResult> GetAllAgents([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllAgents(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? keyword = null,
+            [FromQuery] bool? isActive = null)
         {
-            var result = await _foodEmoliteService.GetAllAgentsAsync(page, pageSize);
+            var result = await _foodEmoliteService.GetAllAgentsAsync(page, pageSize, keyword, isActive);
             return Ok(result);
         }
 
@@ -119,9 +130,40 @@ namespace MS_API.Controllers
         }
 
         [HttpGet("store-foods")]
-        public async Task<IActionResult> GetAllStoreFoods([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllStoreFoods(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? storeRefCode = null,
+            [FromQuery] string? keyword = null)
         {
-            var result = await _foodEmoliteService.GetAllStoreFoodsAsync(page, pageSize);
+            var result = await _foodEmoliteService.GetAllStoreFoodsAsync(page, pageSize, storeRefCode, keyword);
+            return Ok(result);
+        }
+
+        [HttpGet("categories")]
+        public async Task<IActionResult> GetAllCategories(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? keyword = null,
+            [FromQuery] string? storeRefCode = null,
+            [FromQuery] string? sortBy = null,
+            [FromQuery] bool asc = false)
+        {
+            var result = await _foodEmoliteService.GetAllCategoriesAsync(page, pageSize, keyword, storeRefCode, sortBy, asc);
+            return Ok(result);
+        }
+
+        [HttpPost("orders/search")]
+        public async Task<IActionResult> SearchOrders([FromBody] BaseSearchDto<FoodOrderSearchRequest> request)
+        {
+            var result = await _foodEmoliteService.SearchOrdersAsync(request);
+            return Ok(result);
+        }
+
+        [HttpPost("activity-logs/search")]
+        public async Task<IActionResult> SearchActivityLogs([FromBody] BaseSearchDto<FoodActivityLogSearchRequest> request)
+        {
+            var result = await _foodEmoliteService.SearchActivityLogsAsync(request);
             return Ok(result);
         }
     }

@@ -15,6 +15,8 @@ namespace MS_Application.DataTransferObjects.Base
 
         public bool Asc { get; set; } = false;
 
+        public string? SortBy { get; set; }
+
         public T? SearchParams { get; set; }
 
         public int Start

@@ -1,3 +1,4 @@
+using MS_Domain.Common;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Auth;
 using MS_Application.DataTransferObjects.Base;
@@ -47,7 +48,7 @@ namespace MS_Application.Services
             }
 
             var email = dto.Email.Trim().ToLower();
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             var repoRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmOtpCode>().QueryAll();
             var repoWrite = _crmUnitOfWork.GetRepositoryAsync<CrmOtpCode>();
@@ -120,7 +121,7 @@ namespace MS_Application.Services
             }
 
             var email = dto.Email.Trim().ToLower();
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             var repoRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmOtpCode>().QueryAll();
             var repoWrite = _crmUnitOfWork.GetRepositoryAsync<CrmOtpCode>();

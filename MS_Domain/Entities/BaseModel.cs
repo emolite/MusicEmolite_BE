@@ -2,6 +2,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using MS_Domain.Common;
 
 namespace MS_Application.DataTransferObjects.Base
 {
@@ -17,13 +18,13 @@ namespace MS_Application.DataTransferObjects.Base
         public bool IsDeleted { get; set; } = false;
 
         [Column("created_at")]
-        public DateTime? CreatedAt { get; set; } = DateTime.Now;
+        public DateTime? CreatedAt { get; set; } = DateTimeHelper.VnNow;
 
         [Column("created_by")]
         public long? CreatedBy { get; set; }
 
         [Column("updated_at")]
-        public DateTime? UpdatedAt { get; set; } = DateTime.Now;
+        public DateTime? UpdatedAt { get; set; } = DateTimeHelper.VnNow;
 
         [Column("updated_by")]
         public long? UpdatedBy { get; set; }

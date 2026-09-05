@@ -1,4 +1,5 @@
-﻿using MS_Application.Constants;
+using MS_Domain.Common;
+using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Role;
 using MS_Application.Helpers;
@@ -56,7 +57,7 @@ namespace MS_Application.Services
             {
                 RoleCode = roleCode,
                 RoleName = roleName,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTimeHelper.VnNow
             };
 
             await repo.AddAsync(newRole);

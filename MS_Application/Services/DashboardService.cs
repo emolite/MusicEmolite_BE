@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using MS_Domain.Common;
+using Microsoft.EntityFrameworkCore;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Dashboard;
@@ -32,7 +33,7 @@ namespace MS_Application.Services
         {
             var result = new BaseResponse<DashboardSummaryResponseDto>();
 
-            var fromDate = DateTime.Now.Date.AddDays(-30);
+            var fromDate = DateTimeHelper.VnNow.Date.AddDays(-30);
 
             var repoSong = _distUnitOfWork
                 .GetRepositoryReadOnlyAsync<DistSongs>()
@@ -85,8 +86,8 @@ namespace MS_Application.Services
         {
             var result = new BaseResponse<List<DashboardTrendResponseDto>>();
 
-            var fromDate = DateTime.Now.Date.AddDays(-29);
-            var toDate = DateTime.Now.Date;
+            var fromDate = DateTimeHelper.VnNow.Date.AddDays(-29);
+            var toDate = DateTimeHelper.VnNow.Date;
 
             var repoSongView = _distUnitOfWork
                 .GetRepositoryReadOnlyAsync<DistSongViews>()

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+using MS_Domain.Common;
+using Microsoft.AspNetCore.Http;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Auth;
 using MS_Application.DataTransferObjects.Base;
@@ -119,7 +120,7 @@ namespace MS_Application.Services
                 httpContext?.Request.Headers["User-Agent"].ToString();
 
             var refreshToken = Guid.NewGuid().ToString();
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             var existingSession =
                 repoSessionRead.FirstOrDefault(x =>
@@ -195,7 +196,7 @@ namespace MS_Application.Services
                 PasswordSalt = passwordSalt,
                 RoleCode = roleCode,
                 UserType = 1,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTimeHelper.VnNow
             };
 
             await repoUserWrite.AddAsync(newUser);
@@ -206,7 +207,7 @@ namespace MS_Application.Services
                 UserId = newUser.Id,
                 RefCode = newUser.RefCode,
                 FullName = dto.FullName,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTimeHelper.VnNow
             };
 
             await repoProfileWrite.AddAsync(userProfile);
@@ -369,7 +370,7 @@ namespace MS_Application.Services
                     UserType = 2,
                     IsActived = true,
                     IsDeleted = false,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTimeHelper.VnNow
                 };
 
                 await repoUserWrite.AddAsync(user);
@@ -381,7 +382,7 @@ namespace MS_Application.Services
                     RefCode = user.RefCode,
                     IsActived = true,
                     IsDeleted = false,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTimeHelper.VnNow
                 };
 
                 await repoProfileWrite.AddAsync(profile);
@@ -440,7 +441,7 @@ namespace MS_Application.Services
                 return result.Fail("Profile không tồn tại");
             }
 
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             if (dto.UseGoogleInfo)
             {
@@ -504,7 +505,7 @@ namespace MS_Application.Services
 
             user.PasswordHash = passwordHash;
             user.PasswordSalt = passwordSalt;
-            user.UpdatedAt = DateTime.Now;
+            user.UpdatedAt = DateTimeHelper.VnNow;
 
             await repoUserWrite.UpdateAsync(user);
             await _crmUnitOfWork.SaveChangesAsync();
@@ -544,7 +545,7 @@ namespace MS_Application.Services
 
             user.PasswordHash = passwordHash;
             user.PasswordSalt = passwordSalt;
-            user.UpdatedAt = DateTime.Now;
+            user.UpdatedAt = DateTimeHelper.VnNow;
 
             await repoUserWrite.UpdateAsync(user);
             await _crmUnitOfWork.SaveChangesAsync();
@@ -563,7 +564,7 @@ namespace MS_Application.Services
                 return result.Fail("Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại");
             }
 
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             var repoSessionRead = _crmUnitOfWork.GetRepositoryReadOnlyAsync<CrmUserSession>().QueryAll();
             var repoSessionWrite = _crmUnitOfWork.GetRepositoryAsync<CrmUserSession>();
@@ -632,7 +633,7 @@ namespace MS_Application.Services
                 if (session != null)
                 {
                     session.IsDeleted = true;
-                    session.UpdatedAt = DateTime.Now;
+                    session.UpdatedAt = DateTimeHelper.VnNow;
 
                     await repoSessionWrite.UpdateAsync(session);
                     await _crmUnitOfWork.SaveChangesAsync();

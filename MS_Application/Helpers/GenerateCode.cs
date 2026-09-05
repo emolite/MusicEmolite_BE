@@ -1,4 +1,5 @@
-﻿using System;
+using MS_Domain.Common;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -11,7 +12,7 @@ namespace MS_Application.Helpers
     {
         public static string GenerateRoleCode(string rolePrefix)
         {
-            string timePart = DateTime.Now.ToString("yyyyMMddHHmmss");
+            string timePart = DateTimeHelper.VnNow.ToString("yyyyMMddHHmmss");
             return $"{rolePrefix.ToUpper()}-{timePart}";
         }
 

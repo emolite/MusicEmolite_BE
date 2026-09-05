@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+using MS_Domain.Common;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
@@ -793,7 +794,7 @@ namespace MS_Application.Services
                 ipAddress = ipAddress.Split(',').First().Trim();
             }
 
-            var limitTime = DateTime.Now.AddSeconds(-30);
+            var limitTime = DateTimeHelper.VnNow.AddSeconds(-30);
 
             var recentView = repoSongView.QueryAll().Any(x =>
                 x.SongId == id &&
@@ -815,7 +816,7 @@ namespace MS_Application.Services
                     SongId = id,
                     UserId = userId > 0 ? userId : null,
                     IpAddress = ipAddress,
-                    ViewedAt = DateTime.Now,
+                    ViewedAt = DateTimeHelper.VnNow,
                     IsActived = true,
                     IsDeleted = false,
                     CreatedBy = userId > 0 ? userId : null
@@ -884,7 +885,7 @@ namespace MS_Application.Services
             {
                 artist.Url = dto.ChannelThumbnail;
                 artist.UpdatedBy = userId;
-                artist.UpdatedAt = DateTime.Now;
+                artist.UpdatedAt = DateTimeHelper.VnNow;
 
                 await repoArtist.UpdateAsync(artist);
                 await _distUnitOfWork.SaveChangesAsync();
@@ -941,7 +942,7 @@ namespace MS_Application.Services
             {
                 SongId = song.Id,
                 UserId = userId,
-                PlayedAt = DateTime.Now,
+                PlayedAt = DateTimeHelper.VnNow,
                 CreatedBy = userId
             };
 
@@ -1261,7 +1262,7 @@ namespace MS_Application.Services
                 return result.Fail(false, "Bài hát không có trong album này");
 
             existed.IsDeleted = true;
-            existed.UpdatedAt = DateTime.Now;
+            existed.UpdatedAt = DateTimeHelper.VnNow;
             existed.UpdatedBy = userId;
 
             await repoSongAlbum.UpdateAsync(existed);

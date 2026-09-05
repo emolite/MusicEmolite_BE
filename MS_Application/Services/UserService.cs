@@ -1,4 +1,5 @@
-﻿using AMFC_Domain.Entities.Crms;
+using MS_Domain.Common;
+using AMFC_Domain.Entities.Crms;
 using Microsoft.EntityFrameworkCore;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
@@ -362,7 +363,7 @@ namespace MS_Application.Services
             profile.DateOfBirth = dto.DateOfBirth;
             profile.Gender = dto.Gender;
             profile.Bio = dto.Bio;
-            profile.UpdatedAt = DateTime.Now;
+            profile.UpdatedAt = DateTimeHelper.VnNow;
             profile.UpdatedBy = userId;
 
             if (dto.Uri != null)
@@ -456,7 +457,7 @@ namespace MS_Application.Services
                 QrImageUrl = dto.QrImageUrl,
                 IsActived = true,
                 IsDeleted = false,
-                TransDate = DateTime.Now,
+                TransDate = DateTimeHelper.VnNow,
                 CreatedBy = userId
             };
 
@@ -516,7 +517,7 @@ namespace MS_Application.Services
             entity.AccountName = dto.AccountName;
             entity.VietQrUrl = dto.VietQrUrl;
             entity.QrImageUrl = dto.QrImageUrl;
-            entity.UpdatedAt = DateTime.Now;
+            entity.UpdatedAt = DateTimeHelper.VnNow;
             entity.UpdatedBy = userId;
 
             await repo.UpdateAsync(entity);
@@ -571,7 +572,7 @@ namespace MS_Application.Services
 
             entity.IsDeleted = true;
             entity.IsActived = false;
-            entity.UpdatedAt = DateTime.Now;
+            entity.UpdatedAt = DateTimeHelper.VnNow;
             entity.UpdatedBy = userId;
 
             await repo.UpdateAsync(entity);

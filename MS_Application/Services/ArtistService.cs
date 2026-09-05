@@ -1,4 +1,5 @@
-﻿using MS_Application.Constants;
+using MS_Domain.Common;
+using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Artist;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.Helpers;
@@ -160,7 +161,7 @@ namespace MS_Application.Services
             artist.Country = dto.Country;
             artist.Url = dto.Url;
             artist.UpdatedBy = userId;
-            artist.UpdatedAt = DateTime.Now;
+            artist.UpdatedAt = DateTimeHelper.VnNow;
 
             await repo.UpdateAsync(artist);
             await _distUnitOfWork.SaveChangesAsync();

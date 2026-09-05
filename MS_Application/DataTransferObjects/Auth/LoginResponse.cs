@@ -1,4 +1,5 @@
-﻿using System;
+using MS_Domain.Common;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,6 +18,6 @@ namespace MS_Application.DataTransferObjects.Auth
         public bool IsNewUser { get; set; }
         public string? GoogleName { get; set; }
         public string? GooglePicture { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.VnNow;
     }
 }

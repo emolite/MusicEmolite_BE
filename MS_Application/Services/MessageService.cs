@@ -1,3 +1,4 @@
+using MS_Domain.Common;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Message;
@@ -93,7 +94,7 @@ namespace MS_Application.Services
                 replyToMessageId = replySource!.Id;
             }
 
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             var message = new CrmMessage
             {
@@ -230,7 +231,7 @@ namespace MS_Application.Services
 
             if (unread.Count > 0)
             {
-                var now = DateTime.Now;
+                var now = DateTimeHelper.VnNow;
 
                 foreach (var message in unread)
                 {
@@ -269,7 +270,7 @@ namespace MS_Application.Services
             }
 
             message.IsDeleted = true;
-            message.UpdatedAt = DateTime.Now;
+            message.UpdatedAt = DateTimeHelper.VnNow;
             message.UpdatedBy = userId;
 
             await repoWrite.UpdateAsync(message);

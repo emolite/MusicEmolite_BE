@@ -1,3 +1,4 @@
+using MS_Domain.Common;
 using MS_Application.Constants;
 using MS_Application.DataTransferObjects.Base;
 using MS_Application.DataTransferObjects.Friend;
@@ -52,7 +53,7 @@ namespace MS_Application.Services
                 ((x.RequesterId == requesterId && x.AddresseeId == dto.AddresseeId) ||
                  (x.RequesterId == dto.AddresseeId && x.AddresseeId == requesterId)));
 
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             if (existing != null)
             {
@@ -142,7 +143,7 @@ namespace MS_Application.Services
                 return result.Fail(false, "Không tìm thấy lời mời kết bạn");
             }
 
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
 
             friendship.Status = "ACCEPTED";
             friendship.RespondedAt = now;
@@ -196,9 +197,9 @@ namespace MS_Application.Services
             }
 
             friendship.Status = "REJECTED";
-            friendship.RespondedAt = DateTime.Now;
+            friendship.RespondedAt = DateTimeHelper.VnNow;
             friendship.IsDeleted = true;
-            friendship.UpdatedAt = DateTime.Now;
+            friendship.UpdatedAt = DateTimeHelper.VnNow;
             friendship.UpdatedBy = userId;
 
             await repoFriendWrite.UpdateAsync(friendship);
@@ -229,7 +230,7 @@ namespace MS_Application.Services
             }
 
             friendship.IsDeleted = true;
-            friendship.UpdatedAt = DateTime.Now;
+            friendship.UpdatedAt = DateTimeHelper.VnNow;
             friendship.UpdatedBy = userId;
 
             await repoFriendWrite.UpdateAsync(friendship);
@@ -289,7 +290,7 @@ namespace MS_Application.Services
             var existing = repoPinRead.FirstOrDefault(x =>
                 !x.IsDeleted && x.UserId == userId && x.FriendUserId == friendUserId);
 
-            var now = DateTime.Now;
+            var now = DateTimeHelper.VnNow;
             bool isPinned;
 
             if (existing != null)
